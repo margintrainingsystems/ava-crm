@@ -20,6 +20,7 @@ import { errorMessage } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 import { isValidEmail } from '../lib/validation'
+import { EnrollmentSection, FxSection } from './ConfigBilling'
 
 const SAMPLE: Record<string, string> = { nombre: 'Lucía', codigo: 'ARR-7KQ2MX' }
 
@@ -34,9 +35,13 @@ export function ConfigPage() {
           Configuración
         </h1>
         <p className="text-muted measure">
-          Cómo salen los emails del CRM: quién los firma, qué dicen y si las confirmaciones de pedidos salen solas.
+          Las inscripciones y el cupo, la cotización del dólar para los precios en pesos y cómo salen los emails del
+          CRM: quién los firma, qué dicen y si las confirmaciones de pedidos salen solas.
         </p>
       </header>
+
+      <EnrollmentSection />
+      <FxSection />
 
       {settings.loading && !settings.data && <Loading />}
       {Boolean(settings.error) && <LoadError error={settings.error} onRetry={settings.reload} />}

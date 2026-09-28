@@ -871,6 +871,98 @@ export type Database = {
           to_email: string
         }[]
       }
+      crm_enrollment_save: { Args: { p_capacity: number; p_open: boolean }; Returns: undefined }
+      crm_enrollment_view: { Args: never; Returns: Json }
+      crm_fx_set_manual: { Args: { p_note?: string; p_rate: number }; Returns: undefined }
+      crm_fx_status: { Args: never; Returns: Json }
+      crm_payment_refund: {
+        Args: { p_amount: number; p_note?: string; p_payment_id: string; p_reason: string }
+        Returns: undefined
+      }
+      crm_payment_register: {
+        Args: {
+          p_amount: number
+          p_beca_pick_id?: string
+          p_currency: string
+          p_kind: string
+          p_master_id: string
+          p_paid_at: string
+          p_person_id: string
+          p_provider?: string
+          p_provider_payment_id?: string
+          p_subscription_id?: string
+        }
+        Returns: string
+      }
+      crm_payments_list: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          amount: number
+          beca: boolean
+          code: string
+          currency: string
+          fx_rate: number
+          guarantee_until: string
+          id: string
+          kind: string
+          paid_at: string
+          person_id: string
+          person_name: string
+          product: string
+          provider: string
+          provider_payment_id: string
+          refunded_amount: number
+          status: string
+          subscription_id: string
+          withdrawal_until: string
+        }[]
+      }
+      crm_payments_report: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          becas: number
+          currency: string
+          gross: number
+          net: number
+          payments: number
+          refunded: number
+        }[]
+      }
+      crm_raffle_close: { Args: { p_id: string }; Returns: undefined }
+      crm_raffle_draw: { Args: { p_id: string }; Returns: Json }
+      crm_raffle_notify: { Args: { p_pick_id: string }; Returns: undefined }
+      crm_raffle_prepare: { Args: { p_scheduled_for: string }; Returns: string }
+      crm_raffle_resolve: { Args: { p_pick_id: string; p_status: string }; Returns: undefined }
+      crm_raffle_view: { Args: never; Returns: Json }
+      crm_subscription_cancel: { Args: { p_id: string; p_note?: string }; Returns: undefined }
+      crm_subscription_detail: { Args: { p_id: string }; Returns: Json }
+      crm_subscriptions_list: {
+        Args: never
+        Returns: {
+          auto_renew: boolean
+          beca: boolean
+          code: string
+          currency: string
+          current_period_end: string
+          days_to_end: number
+          guarantee_until: string
+          id: string
+          kind: string
+          last_payment_at: string
+          master_id: string
+          person_id: string
+          person_name: string
+          product: string
+          provider: string
+          renewal_amount: number
+          renewal_notice_for: string
+          started_at: string
+          status: string
+          withdrawal_until: string
+        }[]
+      }
+      crm_public_prices: { Args: never; Returns: Json }
+      crm_enrollment_status: { Args: never; Returns: Json }
       crm_log: {
         Args: {
           p_action: string

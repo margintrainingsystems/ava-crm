@@ -15,11 +15,15 @@ type NavItem = { to: string; label: string; end?: boolean } & (
 )
 
 export const MESSAGE_PERMISSIONS: PermissionKey[] = ['mensajes.ver', 'pedidos.gestionar']
+export const PAYMENT_PERMISSIONS: PermissionKey[] = ['pagos.ver', 'reportes.ver']
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Hoy', end: true, always: true },
   { to: '/mensajes', label: 'Mensajes', anyOf: MESSAGE_PERMISSIONS },
   { to: '/personas', label: 'Personas', permission: 'personas.ver' },
+  { to: '/suscripciones', label: 'Suscripciones', permission: 'suscripciones.ver' },
+  { to: '/pagos', label: 'Pagos', anyOf: PAYMENT_PERMISSIONS },
+  { to: '/sorteo', label: 'Sorteo', permission: 'sorteo.gestionar' },
   { to: '/pedidos-de-datos', label: 'Pedidos de datos', permission: 'derechos.gestionar' },
   { to: '/emails', label: 'Emails', anyOf: MESSAGE_PERMISSIONS },
   { to: '/retencion', label: 'Retención', permission: 'personas.borrar' },

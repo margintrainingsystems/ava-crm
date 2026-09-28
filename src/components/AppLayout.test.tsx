@@ -12,6 +12,9 @@ describe('visibleNav', () => {
       '/',
       '/mensajes',
       '/personas',
+      '/suscripciones',
+      '/pagos',
+      '/sorteo',
       '/pedidos-de-datos',
       '/emails',
       '/retencion',
@@ -37,6 +40,10 @@ describe('visibleNav', () => {
     expect(
       visibleNav({ isOwner: false, permissions: new Set(['derechos.gestionar', 'personas.borrar']) }).map((i) => i.to),
     ).toEqual(['/', '/pedidos-de-datos', '/retencion'])
+    expect(visibleNav({ isOwner: false, permissions: new Set(['reportes.ver']) }).map((i) => i.to)).toEqual(['/', '/pagos'])
+    expect(
+      visibleNav({ isOwner: false, permissions: new Set(['suscripciones.ver', 'sorteo.gestionar']) }).map((i) => i.to),
+    ).toEqual(['/', '/suscripciones', '/sorteo'])
   })
 })
 

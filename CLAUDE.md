@@ -12,6 +12,9 @@ Leé el README antes de cambiar algo. Resumen de lo que no se negocia:
 - Antes de subir: `npm run check`, `npm run build` y cada script de `supabase/tests/` con `FALLAS: 0`.
 - Personas y mensajes se leen solo con las funciones `crm_*` (security definer que revisan permisos y ocultan contacto). No agregues políticas que den acceso directo a `leads` o `crm_people`.
 - Diseño: tokens en `src/styles/tokens.css`. Verde como color principal; acentos solo en detalles. Sin glassmorphism, sin cajas de métricas en grupos de 3 o 4, sin etiquetas decorativas sobre los títulos, sin métricas inventadas.
-- Si falta una definición (cupo, plataforma del Campus, textos legales), preguntale a la dueña. No la completes por tu cuenta.
+- Si falta una definición (plataforma del Campus, textos legales), preguntale a la dueña. No la completes por tu cuenta.
+- Precios en dólares (`pricing_plan` y `masters.price`); en pesos, al dólar blue de venta de dolarhoy.com (`crm_fx_rates`). Nunca inventes una cotización: si no hay lectura, se carga a mano desde Configuración.
+- El cupo (60 por defecto, editable) cuenta solo suscripciones anuales. Montos: cada moneda por separado, nunca un total convertido.
+- El sorteo corre en el CRM según las Bases de Términos: no cambies cantidades, plazos ni el corte de la lista sin que la dueña cambie las Bases.
 - Los plazos legales se calculan en la base (`crm_private.crm_add_business_days`, triggers de `crm_data_requests`). Los feriados los carga la dueña desde Núcleo con la lista oficial: nunca los cargues de memoria.
 - Los emails salen solo por la cola `crm_emails` y la Edge Function `crm-emails`. La clave de Resend vive únicamente como secreto de esa función. Nunca mandes emails reales en las pruebas: simulá la función con `crm_email_claim` y `crm_email_mark`.

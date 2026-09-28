@@ -4,7 +4,7 @@ Herramienta de trabajo diario que la dueña de AVA comparte con su equipo: perso
 
 **Núcleo** (`https://ava-nucleo.netlify.app`, repo `ava-nucleo`) es el panel privado de la dueña: desde ahí administra el sitio y también el CRM (equipo, roles y permisos, auditoría y configuración). Los dos usan el mismo proyecto de Supabase.
 
-Hoy el CRM tiene las **fases 0 a 3**: acceso con permisos por rol, personas, mensajes, plazos legales, pedidos de datos, consentimientos, retención y emails (listos para activar con Resend). Las demás secciones se suman por fases (ver "Hoja de ruta").
+Hoy el CRM tiene las **fases 0 a 3 y la primera parte de la fase 4**: acceso con permisos por rol, personas, mensajes, plazos legales, pedidos de datos, consentimientos, retención, emails (listos para activar con Resend), suscripciones, pagos, cupo, cotización del dólar y sorteo de becas. Los cobros todavía se registran a mano: la conexión con Mercado Pago y PayPal es la segunda parte de la fase 4. Las demás secciones se suman por fases (ver "Hoja de ruta").
 
 ## Qué podés hacer hoy
 
@@ -17,7 +17,10 @@ Hoy el CRM tiene las **fases 0 a 3**: acceso con permisos por rol, personas, men
 - **Consentimientos**: cada casilla que marca alguien en el sitio (privacidad, mayor de 18, publicar su nombre) queda como constancia que no se edita. La ficha muestra el estado actual, el historial y permite registrar que la persona retiró la autorización para publicar su nombre.
 - **Retención** (permiso "Borrar datos personales"): lista los formularios que cumplieron el plazo de la Política de privacidad (contacto: 2 años desde el último intercambio; arrepentimiento y baja: 3 años). Nada se borra solo: se eligen y se confirma. Si una persona queda sin formularios, se borra su ficha.
 - **Emails**: cada pedido de arrepentimiento o baja deja en cola su email de confirmación con la plantilla guardada. Si sale bien, el pedido queda confirmado solo; si alguien lo confirma a mano antes, el email se cancela. Desde cada ficha se puede escribir un email: la dirección la completa la base, así que no hace falta ver el email de la persona. La pantalla Emails muestra la cola, los enviados, los que fallaron (con el error de Resend) y los cancelados, con "Enviar ahora" y "Cancelar el envío". Todo email queda en la ficha y en "Descargar sus datos".
-- **Configuración** (permiso "Editar la configuración"): remitente, email para respuestas, confirmación automática sí o no, plantillas con vista previa, revisión de la conexión con Resend y email de prueba.
+- **Suscripciones** (permiso "Ver suscripciones"): la suscripción anual (todos los Másteres) y los Másteres sueltos, por estado, con el cupo ocupado. Cada una muestra sus cobros, la cotización usada, los plazos de garantía (15 días desde el alta) y de arrepentimiento (10 días corridos, hasta el siguiente día hábil) y la renovación. Con "Gestionar suscripciones": registrar un alta o una renovación, dar de baja (mantiene el acceso hasta el final del año pagado) y registrar devoluciones. Los montos solo los ve quien tiene "Ver pagos".
+- **Pagos** (permiso "Ver pagos" o "Ver reportes"): lo cobrado entre dos fechas, con subtotales por moneda (pesos y dólares por separado, sin convertir). Con "Ver pagos" también cada cobro y el CSV.
+- **Sorteo** (permiso "Gestionar el sorteo"): las 3 becas del 50% de las Bases. Numera la lista de espera por orden de inscripción (una vez por persona, solo mayores de 18, anotadas antes de la primera apertura), muestra la huella de la lista, sortea 3 titulares y 3 suplentes con números al azar criptográficos (los repetidos quedan registrados), abre una pantalla con solo números para grabar, manda el aviso por email, lleva los plazos (7 días para responder, 30 para contratar), pasa la beca al suplente y lleva al alta con beca.
+- **Configuración** (permiso "Editar la configuración"): abrir y cerrar inscripciones, el cupo de suscripciones anuales (solo cuentan las anuales), la cotización del dólar blue de venta (se lee de dolarhoy.com a las 10:07 y 16:07; se puede cargar a mano), remitente, email para respuestas, confirmación automática sí o no, plantillas con vista previa, revisión de la conexión con Resend y email de prueba.
 - **Cierre de sesión automático** después de una hora sin actividad.
 - La dueña ve además el link **Administrar en Núcleo**.
 
@@ -27,9 +30,9 @@ Hoy el CRM tiene las **fases 0 a 3**: acceso con permisos por rol, personas, men
 |---|---|
 | CRM → Equipo | Invitar personas, cambiar su rol, reenviar invitaciones, desactivar, reactivar y quitar |
 | CRM → Roles y permisos | Crear roles y elegir sus permisos de la lista fija. Los sensibles van marcados |
-| CRM → Auditoría | Quién abrió fichas, descargó datos o cambió algo, y cuándo. Nadie la puede editar ni borrar |
+| CRM → Auditoría | Quién abrió fichas, descargó datos, cobró, sorteó o cambió algo, y cuándo. Nadie la puede editar ni borrar |
 | CRM → Feriados | Los días que no cuentan como hábiles para los plazos. Se cargan pegando la lista oficial; al cargar o borrar uno, los plazos pendientes se recalculan |
-| CRM → Emails y plantillas | Abre CRM → Configuración. La pantalla vive en el CRM para poder delegarla con el permiso "Editar la configuración". El cupo se suma ahí en la fase 4 |
+| CRM → Cupo, dólar y emails | Abre CRM → Configuración. La pantalla vive en el CRM para poder delegarla con el permiso "Editar la configuración" |
 
 La base aplica las mismas reglas: equipo, roles y auditoría solo los lee y cambia la propietaria del CRM, venga el pedido de Núcleo o de cualquier otro lado.
 
@@ -124,6 +127,11 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_email_templates` | Plantillas de email con marcadores `{nombre}` y `{codigo}` |
 | `crm_emails` | Cola e historial de emails. Se borran con la persona |
 | `crm_consents` | Constancias de consentimiento. Se crean solas con cada formulario y no se editan |
+| `crm_enrollment_settings` | Inscripciones abiertas o cerradas, cupo de suscripciones anuales y fecha de la primera apertura (corte del sorteo). Una sola fila |
+| `crm_fx_rates` | Historial de la cotización del dólar blue de venta: de dolarhoy.com o cargada a mano |
+| `crm_subscriptions` | Suscripción anual o Máster suelto de cada persona, con código `SUS-XXXXXX`, año en curso, moneda, medio y renovación |
+| `crm_payments` | Cada cobro (alta o renovación), con cotización, beca, plazos de garantía y arrepentimiento y devoluciones. Nunca guarda datos de tarjetas |
+| `crm_raffles`, `crm_raffle_entries`, `crm_raffle_draws`, `crm_raffle_picks` | Sorteo de becas: la lista numerada, cada número que salió y las personas sorteadas con su estado |
 | `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
 
 ### Cómo se protegen las personas y los mensajes
@@ -153,12 +161,13 @@ Protecciones de la fila de la propietaria: nadie la puede modificar ni borrar de
 
 ### Probar los permisos
 
-Cuatro scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
+Cinco scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
 
 - `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
 - `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
 - `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (44 reglas).
 - `fase3_emails.sql`: cola, confirmación automática, cancelación al confirmar a mano, reintentos, plantillas, remitente y permisos (40 reglas). No manda emails: simula a la Edge Function.
+- `fase4_suscripciones_pagos_sorteo.sql`: lectura de dolarhoy.com, cotización a mano, cupo, altas, renovaciones, bajas, devoluciones, reporte por moneda, avisos de renovación, sorteo completo y permisos (50 reglas). No lee dolarhoy.com ni manda emails.
 
 Terminan con un error a propósito para que Postgres revierta todo. Correlos en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
 
@@ -168,6 +177,15 @@ Terminan con un error a propósito para que Postgres revierta todo. Correlos en 
 2. Sumá la clave en `PERMISSION_KEYS` (`src/lib/permissions.ts`). Una prueba automática compara las dos listas.
 3. Usá `crm_private.crm_has_permission('clave')` en las políticas RLS de las tablas nuevas.
 4. Regenerá `src/lib/database.types.ts` desde Supabase.
+
+## Suscripciones, pagos, cupo y sorteo
+
+- **Precios**: el sitio los muestra en dólares (`pricing_plan` para la suscripción anual y `masters.price` para cada Máster, con el precio de oferta si está activa). En pesos: dólares × dólar blue de venta vigente, redondeado al peso.
+- **Cotización**: `pg_cron` pide la página de dolarhoy.com todos los días a las 10:07 y 16:07 (hora de Buenos Aires) con `pg_net` y la procesa cada 5 minutos. No guarda un valor fuera de rango ni uno que salte más de un 25%: queda la última buena y la Configuración lo avisa. Si dolarhoy.com cambia su página, la lectura avisa "No encontramos el dólar blue" y hay que cargarla a mano hasta ajustar `crm_private.crm_fx_parse`.
+- **Para el sitio** (sin iniciar sesión): `crm_enrollment_status()` devuelve solo `{abiertas, hay_lugar}`, sin el número del cupo, y `crm_public_prices()` devuelve los precios en dólares y en pesos. Son las dos funciones que Supabase marca como "Public Can Execute SECURITY DEFINER Function": es intencional y no exponen datos personales.
+- **Cupo**: cuentan las suscripciones anuales activas o dadas de baja que todavía no terminaron. Los Másteres sueltos no ocupan cupo. Con el cupo lleno, la base rechaza un alta anual nueva; las renovaciones siguen.
+- **Tareas diarias** (`crm-suscripciones-diario`, 9:11): vencen las suscripciones que terminaron (las activas, con 3 días de gracia para que llegue el débito) y dejan en cola el aviso de renovación 20 días antes, con el precio fijado en ese momento.
+- **Borrado**: una persona con suscripciones o pagos no se puede borrar ni entra en Retención: los registros de cobro se guardan por obligación fiscal.
 
 ## Edge Function `crm-equipo`
 
@@ -217,6 +235,6 @@ Esto es independiente del SMTP de Supabase Auth (invitaciones y contraseñas), q
 | 1 | Personas y Mensajes: todo lo que hacía Núcleo → Mensajes, con una ficha por persona. **Hecha** |
 | 2 | Bandeja "Hoy", pedidos de datos, días hábiles de Argentina, consentimientos y retención de datos. **Hecha** |
 | 3 | Emails con Resend: cola, confirmación automática de pedidos, emails desde la ficha y plantillas. **Hecha**, falta activar Resend |
-| 4 | Pagos con Mercado Pago y PayPal, suscripciones, cupo y sorteo de becas |
+| 4 | Parte 1: suscripciones, pagos registrados a mano, cupo, cotización del dólar blue y sorteo de becas. **Hecha**. Parte 2: cobro con Mercado Pago y PayPal en el sitio, débito automático y avisos de pago (webhooks) |
 | 5 | Campus propio (repo aparte) y certificados con verificación por QR |
 | 6 | IA, Discord, WhatsApp Business y SYNKA |

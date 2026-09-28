@@ -37,6 +37,7 @@ import {
   sendResultText,
   type PersonEmail,
 } from '../lib/emails'
+import { SUBSCRIPTION_STATUS_LABEL, fetchSubscriptions, localDay } from '../lib/billing'
 import { errorMessage } from '../lib/errors'
 import { personDataPackage } from '../lib/exports'
 import { formatDate, formatDateTime, plural } from '../lib/format'
@@ -313,6 +314,8 @@ export function PersonPage({ id }: { id: string }) {
           {detail.data_requests && (
             <PersonDataRequests personId={p.id} requests={detail.data_requests} />
           )}
+
+          {can(access, 'suscripciones.ver') && <PersonSubscriptions personId={p.id} />}
 
           {can(access, 'personas.borrar') && (
             <div className="panel panel-danger stack-sm">
@@ -640,6 +643,37 @@ function PersonForm({ detail, onCancel, onSaved }: { detail: PersonDetail; onCan
         </button>
       </div>
     </form>
+  )
+}
+
+function PersonSubscriptions({ personId }: { personId: string }) {
+  const list = useAsync(fetchSubscriptions)
+  const mine = (list.data ?? []).filter((s) => s.person_id === personId)
+  return (
+    <section className="stack-sm" aria-labelledby="suscripciones-persona">
+      <h3 id="suscripciones-persona" className="h-sm">
+        Suscripciones
+      </h3>
+      {list.loading && !list.data && <Loading />}
+      {Boolean(list.error) && <LoadError error={list.error} onRetry={list.reload} />}
+      {list.data && mine.length === 0 && <p className="text-muted">No contrató la suscripción ni Másteres sueltos.</p>}
+      {mine.length > 0 && (
+        <ul className="plain-list">
+          {mine.map((s) => (
+            <li key={s.id}>
+              <Link className="text-link" to={`/suscripciones?suscripcion=${s.id}`}>
+                {s.code}
+              </Link>{' '}
+              · {s.product} · {SUBSCRIPTION_STATUS_LABEL[s.status]}
+              {s.status === 'activa' || s.status === 'cancelada'
+                ? ` · hasta el ${formatDay(localDay(s.current_period_end))}`
+                : ''}
+              {s.beca ? ' · con beca' : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
