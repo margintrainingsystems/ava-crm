@@ -1,0 +1,6 @@
+# Configuración para la CLI de Supabase (supabase functions deploy, supabase db ...).
+project_id = "mryuhzpenzpyhfidwsup"
+
+[functions.crm-equipo]
+# La función verifica la sesión por su cuenta (ver README, sección "Edge Function").
+verify_jwt = false
