@@ -4,7 +4,8 @@ import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/StatusScreens'
 import { firstName } from '../lib/format'
 import { can, groupPermissions } from '../lib/permissions'
-import { fetchPermissions, fetchRoles, fetchTeam } from '../lib/queries'
+import { fetchPermissions } from '../lib/queries'
+import { NUCLEO_URL } from '../lib/config'
 import { useAsync } from '../lib/useAsync'
 import { useUnreadCount } from '../lib/useUnreadCount'
 import { MESSAGE_PERMISSIONS } from '../components/AppLayout'
@@ -43,7 +44,15 @@ export function HomePage() {
         </p>
       )}
 
-      {member.isOwner && <OwnerNextSteps />}
+      {member.isOwner && (
+        <p className="panel">
+          El equipo, los roles y la auditoría se administran en{' '}
+          <a className="text-link" href={`${NUCLEO_URL}/equipo.html`} target="_blank" rel="noopener noreferrer">
+            Núcleo<span className="visually-hidden"> (se abre en otra pestaña)</span>
+          </a>
+          .
+        </p>
+      )}
 
       <section className="stack-sm" aria-labelledby="tu-acceso">
         <h2 id="tu-acceso" className="h-md">
@@ -55,13 +64,6 @@ export function HomePage() {
           <AccessSummary
             groups={groupPermissions(permissions.data.filter((p) => access.isOwner || access.permissions.has(p.key)))}
           />
-        )}
-        {can(access, 'auditoria.ver') && (
-          <p>
-            <Link className="text-link" to="/auditoria">
-              Ver la auditoría
-            </Link>
-          </p>
         )}
       </section>
     </section>
@@ -89,39 +91,5 @@ function AccessSummary({ groups }: { groups: ReturnType<typeof groupPermissions>
         </div>
       ))}
     </dl>
-  )
-}
-
-async function loadOwnerOverview() {
-  const [roles, team] = await Promise.all([fetchRoles(), fetchTeam()])
-  return { roles: roles.length, members: team.filter((m) => !m.isOwner).length }
-}
-
-function OwnerNextSteps() {
-  const overview = useAsync(loadOwnerOverview)
-  if (overview.loading || !overview.data) return null
-  const { roles, members } = overview.data
-  if (roles > 0 && members > 0) return null
-
-  return (
-    <section className="panel stack-sm" aria-labelledby="primeros-pasos">
-      <h2 id="primeros-pasos" className="h-md">
-        Primeros pasos
-      </h2>
-      <ol className="steps">
-        <li className={roles > 0 ? 'is-done' : undefined}>
-          <Link className="text-link" to="/roles">
-            Creá los roles
-          </Link>{' '}
-          <span className="text-muted">con los permisos de cada puesto: docente, atención, etcétera.</span>
-        </li>
-        <li className={members > 0 ? 'is-done' : undefined}>
-          <Link className="text-link" to="/equipo">
-            Invitá a tu equipo
-          </Link>{' '}
-          <span className="text-muted">y asignale un rol a cada persona.</span>
-        </li>
-      </ol>
-    </section>
   )
 }

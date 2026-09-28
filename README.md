@@ -1,18 +1,30 @@
 # CRM de AVA
 
-Panel privado donde el equipo de AVA gestiona personas, mensajes, pedidos legales, suscripciones y el sorteo de becas. Vive aparte de Núcleo, que queda solo para administrar el sitio. Los dos usan el mismo proyecto de Supabase.
+Herramienta de trabajo diario que la dueña de AVA comparte con su equipo: personas, mensajes y, por fases, pedidos legales, suscripciones y el sorteo de becas.
 
-Hoy el CRM tiene las **fases 0 y 1**: acceso, equipo, roles, permisos, auditoría, personas y mensajes. Las demás secciones se suman por fases (ver "Hoja de ruta").
+**Núcleo** (`https://ava-nucleo.netlify.app`, repo `ava-nucleo`) es el panel privado de la dueña: desde ahí administra el sitio y también el CRM (equipo, roles y permisos, auditoría y configuración). Los dos usan el mismo proyecto de Supabase.
+
+Hoy el CRM tiene las **fases 0 y 1**: acceso con permisos por rol, personas y mensajes. Las demás secciones se suman por fases (ver "Hoja de ruta").
 
 ## Qué podés hacer hoy
 
 - **Entrar** con email y contraseña. Solo entran las cuentas que figuran en el equipo (`crm_members`). Una cuenta de estudiante o de otra persona queda afuera, aunque use el mismo Supabase.
-- **Roles y permisos** (solo la propietaria): creás roles como "Docente" o "Atención a estudiantes" y elegís sus permisos de una lista fija. Los permisos que tocan datos sensibles llevan la marca "Sensible".
-- **Equipo** (solo la propietaria): invitás personas por email, cambiás su rol, desactivás o reactivás su acceso y las quitás del equipo.
-- **Auditoría** (propietaria y roles con el permiso "Ver la auditoría"): el registro de cada cambio en el equipo y en los roles. Nadie lo puede editar ni borrar.
+- **Ver solo lo que permite tu rol**: el menú, las pantallas y los datos dependen de los permisos que la dueña le dio a tu rol en Núcleo. Con "Ver email y teléfono" apagado, esos datos llegan vacíos desde la base.
 - **Mensajes**: todo lo que hacía Núcleo → Mensajes. Pestañas por tipo con contador, archivados, notas internas con aviso si quedan sin guardar, responder por email o WhatsApp, plazo de 24 horas de los pedidos, email de confirmación ya redactado, marcar como confirmado y descargar CSV. El menú muestra cuántos mensajes hay sin leer.
 - **Personas**: una ficha por email con todo lo que llegó desde el sitio, notas internas, etiquetas, consentimientos, historial, "Descargar sus datos" (para responder un pedido de acceso) y borrado completo.
 - **Cierre de sesión automático** después de una hora sin actividad.
+- La dueña ve además el link **Administrar en Núcleo**.
+
+## Qué se administra en Núcleo
+
+| Sección de Núcleo | Qué hace |
+|---|---|
+| CRM → Equipo | Invitar personas, cambiar su rol, reenviar invitaciones, desactivar, reactivar y quitar |
+| CRM → Roles y permisos | Crear roles y elegir sus permisos de la lista fija. Los sensibles van marcados |
+| CRM → Auditoría | Quién abrió fichas, descargó datos o cambió algo, y cuándo. Nadie la puede editar ni borrar |
+| (fase 4) Configuración | Cupo, plantillas de email y plazos. Se puede delegar con el permiso "Editar la configuración" |
+
+La base aplica las mismas reglas: equipo, roles y auditoría solo los lee y cambia la propietaria del CRM, venga el pedido de Núcleo o de cualquier otro lado.
 
 ## Cómo está armado
 
@@ -21,7 +33,7 @@ Hoy el CRM tiene las **fases 0 y 1**: acceso, equipo, roles, permisos, auditorí
 | Interfaz | React 19 + TypeScript + Vite, publicada en Netlify |
 | Datos y login | Supabase: proyecto `mryuhzpenzpyhfidwsup` (São Paulo) |
 | Seguridad | Políticas RLS en cada tabla del CRM. La interfaz oculta lo que no te corresponde, pero la base es la que bloquea |
-| Invitaciones | Edge Function `crm-equipo`, la única pieza que usa la `service_role` |
+| Invitaciones | Edge Function `crm-equipo`, que llama Núcleo. Es la única pieza que usa la `service_role` |
 | Emails | Supabase Auth con el SMTP de Resend (ver "Configuración pendiente en Supabase") |
 
 ```
@@ -72,7 +84,7 @@ El CRM abre en `http://localhost:5173`.
 
 Las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` están en `.env.production`. Son públicas por diseño, igual que en el sitio: la seguridad depende de RLS, nunca de esconder esas claves. La `service_role` jamás va en este repo ni en Netlify.
 
-Si el nombre `ava-crm` está ocupado o cambiás de dominio, actualizá la dirección en tres lugares: la variable `CRM_ALLOWED_ORIGINS` de la Edge Function, las URLs de redirección de Supabase y este README.
+Si el nombre `ava-crm` está ocupado o cambiás de dominio, actualizá la dirección en: las variables `CRM_URL` y `CRM_ALLOWED_ORIGINS` de la Edge Function, las URLs de redirección de Supabase, `NUCLEO_CRM_URL` y las redirecciones de Núcleo, y este README.
 
 ## Configuración pendiente en Supabase
 
@@ -83,7 +95,7 @@ Estas opciones se cambian desde el panel de Supabase; las herramientas de Claude
 3. **Authentication → Emails → SMTP Settings:** activá el SMTP propio con Resend. Host `smtp.resend.com`, puerto `465`, usuario `resend`, contraseña: una API key de Resend. El remitente tiene que ser de un dominio verificado en Resend (hoy no hay ninguno). Sin este paso, Supabase solo manda emails de prueba a las cuentas de tu organización y las invitaciones no llegan.
 4. **Authentication → Emails → Templates:** pegá `supabase/templates/invitacion.html` en "Invite user" y `supabase/templates/recuperar-contrasena.html` en "Reset password". Cada archivo trae el asunto sugerido.
 5. **Authentication → Attack Protection → "Prevent use of leaked passwords":** activado. Supabase lo marca como aviso de seguridad.
-6. **Edge Functions → crm-equipo → Secrets (opcional):** `CRM_ALLOWED_ORIGINS=https://ava-crm.netlify.app,http://localhost:5173`. Si no la cargás, la función usa esos mismos valores.
+6. **Edge Functions → crm-equipo → Secrets (opcional):** `CRM_URL=https://ava-crm.netlify.app` y `CRM_ALLOWED_ORIGINS=https://ava-nucleo.netlify.app,https://ava-crm.netlify.app,http://localhost:5173`. Si no las cargás, la función usa esos mismos valores.
 
 ## Base de datos
 
@@ -95,7 +107,7 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_roles` | Roles que crea la propietaria |
 | `crm_role_permissions` | Qué permisos tiene cada rol |
 | `crm_members` | Personas del equipo, con su rol y si están activas. La propietaria es la fila con `is_owner` |
-| `crm_audit_log` | Registro de cambios. Nadie lo edita ni lo borra desde la API |
+| `crm_audit_log` | Registro de cambios y accesos. Solo lo lee la propietaria (desde Núcleo); nadie lo edita ni lo borra desde la API |
 | `crm_people` | Una fila por persona, identificada por su email en minúsculas |
 | `crm_person_notes` | Notas internas sobre cada persona |
 | `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
@@ -138,10 +150,11 @@ Terminan con un error a propósito para que Postgres revierta todo. Correlos en 
 
 ## Edge Function `crm-equipo`
 
-Acciones: `invitar`, `reenviar` y `estado`. Solo responde a la propietaria activa del CRM.
+Acciones: `invitar`, `reenviar` y `estado`. La llama Núcleo desde Equipo y solo responde a la propietaria activa del CRM.
 
 - Verifica la sesión de quien llama con `auth.getUser(token)`. Por eso se publica con `verify_jwt` apagado (`supabase/config.toml`): así funciona igual con las claves nuevas de Supabase.
-- Si el email ya tiene cuenta activa en AVA (por ejemplo, una estudiante), la suma al equipo sin mandar email y la persona entra con su contraseña de siempre.
+- El link del email de invitación siempre lleva a `CRM_URL/definir-contrasena`, venga el pedido de donde venga.
+- Si el email ya tiene cuenta activa en AVA (por ejemplo, una estudiante), la suma al equipo sin mandar email y la persona entra con su contraseña de siempre. Si la cuenta existe pero nunca se activó, le reenvía el link.
 - Si la invitación sale bien pero no puede guardar a la persona en el equipo, borra la cuenta recién creada para no dejar cuentas sueltas.
 
 Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
@@ -160,7 +173,7 @@ Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
 
 | Fase | Entrega |
 |---|---|
-| 0 | Acceso, equipo, roles, permisos y auditoría. **Hecha** |
+| 0 | Acceso, equipo, roles, permisos y auditoría (la administración quedó en Núcleo). **Hecha** |
 | 1 | Personas y Mensajes: todo lo que hacía Núcleo → Mensajes, con una ficha por persona. **Hecha** |
 | 2 | Bandeja "Hoy", pedidos legales, días hábiles de Argentina, consentimientos y retención de datos |
 | 3 | Emails automáticos con Resend, empezando por la confirmación de pedidos en 24 horas |

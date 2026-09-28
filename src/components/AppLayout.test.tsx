@@ -12,17 +12,14 @@ describe('visibleNav', () => {
       '/',
       '/mensajes',
       '/personas',
-      '/equipo',
-      '/roles',
-      '/auditoria',
     ])
   })
 
   it('muestra solo lo permitido al resto', () => {
     expect(visibleNav({ isOwner: false, permissions: new Set() }).map((i) => i.to)).toEqual(['/'])
-    expect(visibleNav({ isOwner: false, permissions: new Set(['auditoria.ver']) }).map((i) => i.to)).toEqual([
+    expect(visibleNav({ isOwner: false, permissions: new Set(['personas.ver']) }).map((i) => i.to)).toEqual([
       '/',
-      '/auditoria',
+      '/personas',
     ])
     expect(visibleNav({ isOwner: false, permissions: new Set(['pedidos.gestionar']) }).map((i) => i.to)).toEqual([
       '/',
@@ -44,6 +41,7 @@ describe('AppLayout', () => {
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByText('Docente')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Equipo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Administrar en Núcleo/ })).not.toBeInTheDocument()
 
     const toggle = screen.getByRole('button', { name: 'Abrir menú' })
     await userEvent.click(toggle)

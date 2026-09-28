@@ -28,7 +28,3 @@ export function passwordProblem(password: string, confirmation: string): string 
   }
   return null
 }
-
-export const ROLE_NAME_MAX = 60
-export const ROLE_DESCRIPTION_MAX = 300
-export const DISPLAY_NAME_MAX = 120

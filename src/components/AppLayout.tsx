@@ -4,6 +4,7 @@ import { useMember, useAuth } from '../auth/context'
 import { useIdleSignOut } from '../auth/useIdleSignOut'
 import { can, type Access, type PermissionKey } from '../lib/permissions'
 import { useUnreadCount } from '../lib/useUnreadCount'
+import { NUCLEO_URL } from '../lib/config'
 import { Brand } from './Brand'
 
 type NavItem = { to: string; label: string; end?: boolean } & (
@@ -19,9 +20,6 @@ const NAV: NavItem[] = [
   { to: '/', label: 'Inicio', end: true, always: true },
   { to: '/mensajes', label: 'Mensajes', anyOf: MESSAGE_PERMISSIONS },
   { to: '/personas', label: 'Personas', permission: 'personas.ver' },
-  { to: '/equipo', label: 'Equipo', ownerOnly: true },
-  { to: '/roles', label: 'Roles y permisos', ownerOnly: true },
-  { to: '/auditoria', label: 'Auditoría', permission: 'auditoria.ver' },
 ]
 
 export function visibleNav(access: Access): NavItem[] {
@@ -109,6 +107,12 @@ export function AppLayout() {
             <span className="sidebar-user-name">{member.displayName || member.email}</span>
             <span className="sidebar-user-role">{member.isOwner ? 'Propietaria' : (member.roleName ?? 'Sin rol')}</span>
           </p>
+          {member.isOwner && (
+            <a className="sidebar-admin-link" href={NUCLEO_URL} target="_blank" rel="noopener noreferrer">
+              Administrar en Núcleo <span aria-hidden="true">↗</span>
+              <span className="visually-hidden"> (se abre en otra pestaña)</span>
+            </a>
+          )}
           <button type="button" className="btn btn-outline btn-sm btn-block" onClick={() => void signOut()}>
             Cerrar sesión
           </button>

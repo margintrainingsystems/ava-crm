@@ -1,10 +1,25 @@
-import migration from '../../supabase/migrations/20260928045339_crm_equipo_roles_permisos.sql?raw'
+// Todas las migraciones en orden: los permisos que se crean menos los que se borran.
+const migrations = import.meta.glob('../../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true })
+
+function permissionsInMigrations(): string[] {
+  const keys = new Set<string>()
+  for (const file of Object.keys(migrations).sort()) {
+    const sql = migrations[file] as string
+    const inserts = sql.match(/insert into public\.crm_permissions[\s\S]*?;/g) ?? []
+    inserts.forEach((block) => [...block.matchAll(/\('([a-z_]+\.[a-z_]+)',/g)].forEach((m) => keys.add(m[1] as string)))
+    ;[...sql.matchAll(/delete from public\.crm_permissions where key = '([a-z_.]+)'/g)].forEach((m) => keys.delete(m[1] as string))
+  }
+  return [...keys]
+}
 import { PERMISSION_KEYS, can, groupPermissions, isPermissionKey, type Permission } from './permissions'
 
 describe('catálogo de permisos', () => {
-  it('coincide con los permisos que crea la migración', () => {
-    const inSql = [...migration.matchAll(/\('([a-z_]+\.[a-z_]+)',/g)].map((m) => m[1])
-    expect(inSql.sort()).toEqual([...PERMISSION_KEYS].sort())
+  it('coincide con los permisos que dejan las migraciones', () => {
+    expect(permissionsInMigrations().sort()).toEqual([...PERMISSION_KEYS].sort())
+  })
+
+  it('ya no incluye la auditoría, que es solo de la propietaria', () => {
+    expect(isPermissionKey('auditoria.ver')).toBe(false)
   })
 
   it('reconoce claves válidas e inválidas', () => {

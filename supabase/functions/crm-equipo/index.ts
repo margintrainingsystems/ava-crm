@@ -1,5 +1,7 @@
 // Edge Function crm-equipo: invita personas al equipo del CRM, reenvía invitaciones
 // y devuelve el estado de cada cuenta. Solo la propietaria del CRM la puede usar.
+// La llama Núcleo (donde la propietaria administra el equipo); los links de invitación
+// siempre llevan al CRM, que es donde entra el equipo.
 //
 // Usa la service_role, que nunca sale de Supabase. Verifica a quien llama con su token
 // de sesión, porque la opción verify_jwt de Supabase queda apagada (ver README).
@@ -8,7 +10,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const ALLOWED_ORIGINS = (Deno.env.get('CRM_ALLOWED_ORIGINS') ?? 'https://ava-crm.netlify.app,http://localhost:5173')
+const CRM_URL = (Deno.env.get('CRM_URL') ?? 'https://ava-crm.netlify.app').replace(/\/+$/, '')
+const ALLOWED_ORIGINS = (
+  Deno.env.get('CRM_ALLOWED_ORIGINS') ??
+    'https://ava-nucleo.netlify.app,https://ava-crm.netlify.app,http://localhost:5173'
+)
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean)
@@ -62,9 +68,8 @@ async function audit(
   if (error) console.error('No se pudo registrar en la auditoría', error.message)
 }
 
-function redirectTo(origin: string | null): string {
-  const base = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '')
-  return `${base}/definir-contrasena`
+function redirectTo(): string {
+  return `${CRM_URL}/definir-contrasena`
 }
 
 Deno.serve(async (req) => {
@@ -173,7 +178,7 @@ Deno.serve(async (req) => {
       // La cuenta existe pero nunca se activó (por ejemplo, una invitación vieja): le mandamos el link de nuevo.
       if (!existing.email_confirmed_at && !existing.last_sign_in_at) {
         const { error: resendError } = await admin.auth.admin.inviteUserByEmail(email, {
-          redirectTo: redirectTo(origin),
+          redirectTo: redirectTo(),
           data: { display_name: displayName },
         })
         if (resendError) {
@@ -190,7 +195,7 @@ Deno.serve(async (req) => {
     }
 
     const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: redirectTo(origin),
+      redirectTo: redirectTo(),
       data: { display_name: displayName },
     })
     if (inviteError || !invited.user) {
@@ -244,7 +249,7 @@ Deno.serve(async (req) => {
     }
 
     const { error } = await admin.auth.admin.inviteUserByEmail(member.email as string, {
-      redirectTo: redirectTo(origin),
+      redirectTo: redirectTo(),
     })
     if (error) {
       return fail(

@@ -1,7 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import { AppLayout, MESSAGE_PERMISSIONS } from './components/AppLayout'
 import { RequireAccess, RequireAuth } from './components/Guards'
-import { AuditPage } from './pages/AuditPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -9,9 +8,7 @@ import { MessagesPage } from './pages/MessagesPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PeoplePage } from './pages/PeoplePage'
 import { PersonRoute } from './pages/PersonPage'
-import { RolesPage } from './pages/RolesPage'
 import { SetPasswordPage } from './pages/SetPasswordPage'
-import { TeamPage } from './pages/TeamPage'
 
 export function App() {
   return (
@@ -48,30 +45,6 @@ export function App() {
           element={
             <RequireAccess permission="personas.ver">
               <PersonRoute />
-            </RequireAccess>
-          }
-        />
-        <Route
-          path="equipo"
-          element={
-            <RequireAccess ownerOnly>
-              <TeamPage />
-            </RequireAccess>
-          }
-        />
-        <Route
-          path="roles"
-          element={
-            <RequireAccess ownerOnly>
-              <RolesPage />
-            </RequireAccess>
-          }
-        />
-        <Route
-          path="auditoria"
-          element={
-            <RequireAccess permission="auditoria.ver">
-              <AuditPage />
             </RequireAccess>
           }
         />

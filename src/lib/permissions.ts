@@ -1,5 +1,6 @@
 // Catálogo de permisos del CRM. Tiene que coincidir con la tabla crm_permissions:
-// si agregás uno, sumalo acá y en una migración nueva.
+// si agregás o sacás uno, hacelo acá y en una migración nueva.
+// Equipo, roles y auditoría no son permisos: los maneja solo la propietaria desde Núcleo.
 export const PERMISSION_KEYS = [
   'personas.ver',
   'personas.ver_contacto',
@@ -16,7 +17,6 @@ export const PERMISSION_KEYS = [
   'sorteo.gestionar',
   'reportes.ver',
   'configuracion.editar',
-  'auditoria.ver',
 ] as const
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number]

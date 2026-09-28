@@ -5,6 +5,7 @@ Leé el README antes de cambiar algo. Resumen de lo que no se negocia:
 - Idioma de la interfaz y de los textos: español rioplatense con voseo ("elegí", "podés"). Nada de notas de desarrollo visibles.
 - La dueña es Aimar Merino, la única propietaria (`crm_members.is_owner`). Siempre en femenino.
 - Supabase compartido con el sitio (`aprendeconava`) y Núcleo (`ava-nucleo`): proyecto `mryuhzpenzpyhfidwsup`. No romper los INSERT públicos en `leads` ni sus políticas.
+- Núcleo es solo de la dueña y administra todo: sitio, equipo, roles, auditoría y configuración del CRM. El CRM es la herramienta de trabajo que se comparte. Nada de administración del equipo va en el CRM.
 - Tablas del CRM con prefijo `crm_`, RLS obligatorio, helpers en `crm_private`. Cambios de base solo con migraciones en `supabase/migrations/` con el mismo nombre y versión que quedan en Supabase.
 - Nunca pedir ni guardar datos de tarjetas, DNI ni datos sensibles. La `service_role` solo en Edge Functions.
 - Todo lo que se sube a GitHub va directo a `main`. El plan de trabajo queda local, fuera del repo.

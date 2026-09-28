@@ -13,8 +13,8 @@ describe('RequireAccess', () => {
   })
 
   it('deja pasar con el permiso del rol', () => {
-    renderWithAuth(<RequireAccess permission="auditoria.ver">Auditoría</RequireAccess>, readyState({}, ['auditoria.ver']))
-    expect(screen.getByText('Auditoría')).toBeInTheDocument()
+    renderWithAuth(<RequireAccess permission="personas.ver">Personas</RequireAccess>, readyState({}, ['personas.ver']))
+    expect(screen.getByText('Personas')).toBeInTheDocument()
   })
 
   it('deja pasar a la propietaria', () => {

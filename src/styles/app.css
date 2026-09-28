@@ -102,6 +102,14 @@
   font-size: 0.82rem;
   color: var(--text-muted);
 }
+.sidebar-admin-link {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.sidebar-admin-link:hover {
+  color: var(--green);
+}
 .main {
   margin-left: var(--sidebar-w);
   padding: clamp(24px, 4vw, 48px) clamp(16px, 4vw, 56px) 64px;
@@ -160,56 +168,6 @@
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-m);
 }
-.card-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.card {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  padding: 18px 20px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-m);
-}
-.card-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  flex: 1 1 280px;
-}
-.card-meta {
-  font-size: 0.84rem;
-  color: var(--text-faint);
-}
-.card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.steps {
-  padding-left: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.steps li::marker {
-  color: var(--green);
-  font-weight: 700;
-}
-.steps .is-done .text-link {
-  color: var(--text-faint);
-  text-decoration: line-through;
-}
-
 /* --- Resumen de permisos --- */
 .access-list {
   display: grid;
@@ -271,13 +229,6 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.cell-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 @media (max-width: 720px) {
   .table-wrap {
     border: 0;
@@ -315,117 +266,6 @@
     font-size: 0.76rem;
     font-weight: 700;
     color: var(--text-faint);
-  }
-  .cell-actions {
-    justify-content: flex-start;
-    padding-top: 6px;
-  }
-}
-
-/* --- Estados --- */
-.badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  font-size: 0.78rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.badge-propietaria {
-  border-color: var(--green);
-  color: var(--green);
-}
-.badge-activa,
-.badge-desconocido {
-  color: var(--text);
-}
-.badge-pendiente {
-  border-color: var(--accent-3);
-  color: var(--accent-3);
-}
-.badge-desactivada {
-  color: var(--text-faint);
-}
-
-/* --- Editor de roles --- */
-.perm-group {
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-m);
-  padding: 14px 16px 6px;
-  margin: 0;
-  min-width: 0;
-}
-.perm-group legend {
-  padding: 0 6px;
-  font-weight: 700;
-  color: var(--green);
-}
-.check-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 8px 0;
-}
-.check-row input {
-  accent-color: var(--green);
-  width: 18px;
-  height: 18px;
-  margin-top: 3px;
-  flex: none;
-  cursor: pointer;
-}
-.check-row label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  cursor: pointer;
-}
-.check-label {
-  font-weight: 600;
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.check-desc {
-  font-size: 0.84rem;
-  color: var(--text-muted);
-}
-.tag-sensitive {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--accent-3);
-  border: 1px solid var(--accent-3);
-  border-radius: 999px;
-  padding: 1px 8px;
-}
-
-/* --- Auditoría --- */
-.audit-list {
-  list-style: none;
-  padding: 0;
-  border-top: 1px solid var(--line-soft);
-}
-.audit-item {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line-soft);
-  font-size: 0.92rem;
-}
-.audit-time {
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-.audit-actor {
-  font-weight: 700;
-}
-@media (max-width: 560px) {
-  .audit-item {
-    grid-template-columns: 1fr;
-    gap: 2px;
   }
 }
 
