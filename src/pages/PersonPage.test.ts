@@ -14,7 +14,26 @@ describe('ficha de persona', () => {
       messages: [msg({ id: 'a', created_at: '2026-09-01T00:00:00Z' }), msg({ id: 'b', created_at: '2026-09-03T00:00:00Z' })],
       notes: [{ id: 'n', body: 'x', author_email: null, created_at: '2026-09-02T00:00:00Z' }],
     })
-    expect(t.map((i) => (i.kind === 'mensaje' ? i.message.id : i.note.id))).toEqual(['b', 'n', 'a'])
+    expect(t.map((i) => (i.kind === 'mensaje' ? i.message.id : i.kind === 'nota' ? i.note.id : i.email.id))).toEqual([
+      'b',
+      'n',
+      'a',
+    ])
+  })
+
+  it('ubica cada email en el historial por la fecha en que salió', () => {
+    const t = buildTimeline({
+      messages: [msg({ id: 'a', created_at: '2026-09-01T00:00:00Z' })],
+      notes: [],
+      emails: [
+        {
+          id: 'e', kind: 'confirmacion', lead_source: 'baja', subject: 'x', body: 'y', status: 'enviado',
+          created_at: '2026-08-01T00:00:00Z', sent_at: '2026-09-02T00:00:00Z', created_by_email: null,
+          last_error: null, cancel_reason: null,
+        },
+      ],
+    })
+    expect(t.map((i) => i.kind)).toEqual(['email', 'mensaje'])
   })
 
   it('describe cada constancia de consentimiento', () => {

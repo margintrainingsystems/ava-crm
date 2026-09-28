@@ -16,6 +16,8 @@ export type TodayRequest = {
   name: string | null
   created_at: string
   deadline: string
+  // Estado del email de confirmación automático, si hay uno.
+  email_status?: 'pendiente' | 'enviando' | 'enviado' | 'fallido' | 'cancelado' | null
 }
 
 export type TodayDataRequest = {
@@ -39,6 +41,8 @@ export type Today = {
   unread?: TodayUnread[]
   unread_count?: number
   expired_count?: number
+  failed_emails?: number
+  email_ready?: boolean
 }
 
 export async function fetchToday(): Promise<Today> {

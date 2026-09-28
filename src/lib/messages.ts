@@ -84,8 +84,20 @@ export function replyHref(m: Pick<Message, 'email' | 'source'>): string | null {
 }
 
 // Email de confirmación ya redactado, con el código que exige la norma. Mismo texto que Núcleo.
-export function confirmationText(m: Pick<Message, 'source' | 'name' | 'request_code'>): { subject: string; body: string } | null {
+type TemplateLike = { key: string; subject: string; body: string }
+
+// Usa la plantilla guardada en CRM → Configuración. Si todavía no cargó, el texto de siempre.
+export function confirmationText(
+  m: Pick<Message, 'source' | 'name' | 'request_code'>,
+  templates: TemplateLike[] = [],
+): { subject: string; body: string } | null {
   if (!isRequest(m.source)) return null
+  const template = templates.find((t) => t.key === `confirmacion_${m.source}`)
+  if (template) {
+    const values: Record<string, string> = { nombre: (m.name ?? '').trim(), codigo: m.request_code ?? '' }
+    const fill = (text: string) => text.replace(/\{([a-z_]+)\}/g, (_, key: string) => values[key] ?? '')
+    return { subject: fill(template.subject), body: fill(template.body) }
+  }
   const what = REQUEST_NAME[m.source]
   const subject = `AVA — Confirmación de tu pedido de ${what} (${m.request_code ?? ''})`
   const body =
@@ -98,8 +110,11 @@ export function confirmationText(m: Pick<Message, 'source' | 'name' | 'request_c
   return { subject, body }
 }
 
-export function confirmationHref(m: Pick<Message, 'source' | 'name' | 'request_code' | 'email'>): string | null {
-  const text = confirmationText(m)
+export function confirmationHref(
+  m: Pick<Message, 'source' | 'name' | 'request_code' | 'email'>,
+  templates: TemplateLike[] = [],
+): string | null {
+  const text = confirmationText(m, templates)
   if (!text) return null
   return mailHref(m.email, `subject=${encodeURIComponent(text.subject)}&body=${encodeURIComponent(text.body)}`)
 }

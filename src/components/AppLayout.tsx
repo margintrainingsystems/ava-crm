@@ -21,7 +21,9 @@ const NAV: NavItem[] = [
   { to: '/mensajes', label: 'Mensajes', anyOf: MESSAGE_PERMISSIONS },
   { to: '/personas', label: 'Personas', permission: 'personas.ver' },
   { to: '/pedidos-de-datos', label: 'Pedidos de datos', permission: 'derechos.gestionar' },
+  { to: '/emails', label: 'Emails', anyOf: MESSAGE_PERMISSIONS },
   { to: '/retencion', label: 'Retención', permission: 'personas.borrar' },
+  { to: '/configuracion', label: 'Configuración', permission: 'configuracion.editar' },
 ]
 
 export function visibleNav(access: Access): NavItem[] {

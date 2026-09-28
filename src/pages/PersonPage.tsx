@@ -29,9 +29,17 @@ import {
   type PersonMessage,
   type PersonNote,
 } from '../lib/crm'
+import {
+  EMAIL_KIND_LABEL,
+  EMAIL_STATUS_LABEL,
+  composeEmail,
+  sendNow,
+  sendResultText,
+  type PersonEmail,
+} from '../lib/emails'
 import { errorMessage } from '../lib/errors'
 import { personDataPackage } from '../lib/exports'
-import { formatDate, formatDateTime } from '../lib/format'
+import { formatDate, formatDateTime, plural } from '../lib/format'
 import {
   emptyMessageText,
   isRequest,
@@ -45,12 +53,16 @@ import { can } from '../lib/permissions'
 import { useAsync } from '../lib/useAsync'
 import { isValidEmail } from '../lib/validation'
 
-type TimelineItem = { kind: 'mensaje'; at: string; message: PersonMessage } | { kind: 'nota'; at: string; note: PersonNote }
+type TimelineItem =
+  | { kind: 'mensaje'; at: string; message: PersonMessage }
+  | { kind: 'nota'; at: string; note: PersonNote }
+  | { kind: 'email'; at: string; email: PersonEmail }
 
-export function buildTimeline(detail: Pick<PersonDetail, 'messages' | 'notes'>): TimelineItem[] {
+export function buildTimeline(detail: Pick<PersonDetail, 'messages' | 'notes'> & { emails?: PersonEmail[] }): TimelineItem[] {
   const items: TimelineItem[] = [
     ...detail.messages.map((message) => ({ kind: 'mensaje' as const, at: message.created_at, message })),
     ...detail.notes.map((note) => ({ kind: 'nota' as const, at: note.created_at, note })),
+    ...(detail.emails ?? []).map((email) => ({ kind: 'email' as const, at: email.sent_at ?? email.created_at, email })),
   ]
   return items.sort((a, b) => b.at.localeCompare(a.at))
 }
@@ -76,6 +88,7 @@ export function PersonPage({ id }: { id: string }) {
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
+  const [composing, setComposing] = useState(false)
 
   if (page.loading && !page.data) return <Loading />
   if (page.error || !page.data) {
@@ -153,6 +166,11 @@ export function PersonPage({ id }: { id: string }) {
           )}
         </div>
         <div className="form-actions">
+          {can(access, 'mensajes.responder') && !composing && (
+            <button type="button" className="btn btn-solid" onClick={() => setComposing(true)}>
+              Escribir un email
+            </button>
+          )}
           {can(access, 'personas.editar') && !editing && (
             <button type="button" className="btn btn-outline" onClick={() => setEditing(true)}>
               Editar datos
@@ -165,6 +183,18 @@ export function PersonPage({ id }: { id: string }) {
           )}
         </div>
       </header>
+
+      {composing && (
+        <ComposeForm
+          personId={p.id}
+          name={personName(p)}
+          onCancel={() => setComposing(false)}
+          onQueued={async () => {
+            setComposing(false)
+            await page.reload()
+          }}
+        />
+      )}
 
       {editing && (
         <PersonForm
@@ -198,6 +228,8 @@ export function PersonPage({ id }: { id: string }) {
               {timeline.map((item) =>
                 item.kind === 'mensaje' ? (
                   <TimelineMessage key={`m-${item.message.id}`} m={item.message} />
+                ) : item.kind === 'email' ? (
+                  <TimelineEmail key={`e-${item.email.id}`} e={item.email} />
                 ) : (
                   <li key={`n-${item.note.id}`} className="timeline-item timeline-note">
                     <p className="timeline-head">
@@ -286,7 +318,7 @@ export function PersonPage({ id }: { id: string }) {
             <div className="panel panel-danger stack-sm">
               <h3 className="h-md">Borrar a esta persona</h3>
               <p className="text-muted">
-                Borra la ficha, sus mensajes y sus notas. Usalo cuando la persona pide que borren sus datos o cuando vence
+                Borra la ficha, sus mensajes, sus notas y sus emails. Usalo cuando la persona pide que borren sus datos o cuando vence
                 el plazo de guarda.
               </p>
               <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleting(true)}>
@@ -319,8 +351,10 @@ export function PersonPage({ id }: { id: string }) {
         onClose={() => setDeleting(false)}
       >
         <p>
-          Vas a borrar a <strong>{personName(p)}</strong> con {detail.messages.length + detail.hidden_messages} mensajes y{' '}
-          {detail.notes.length} notas. No se puede deshacer.
+          Vas a borrar a <strong>{personName(p)}</strong> con{' '}
+          {plural(detail.messages.length + detail.hidden_messages, 'mensaje', 'mensajes')},{' '}
+          {plural(detail.notes.length, 'nota', 'notas')} y {plural(detail.emails.length, 'email', 'emails')}. No se puede
+          deshacer.
         </p>
         <p>La auditoría registra el borrado con la fecha y quién lo hizo, sin guardar sus datos personales.</p>
       </ConfirmDialog>
@@ -357,6 +391,114 @@ function TimelineMessage({ m }: { m: PersonMessage }) {
         </Link>
       </p>
     </li>
+  )
+}
+
+function TimelineEmail({ e }: { e: PersonEmail }) {
+  const when = e.sent_at
+    ? `salió el ${formatDateTime(e.sent_at)}`
+    : `${EMAIL_STATUS_LABEL[e.status].toLowerCase()} · ${formatDateTime(e.created_at)}`
+  return (
+    <li className="timeline-item timeline-email">
+      <p className="timeline-head">
+        <strong>Email: {e.subject}</strong>
+        <span className="text-muted">
+          {' · '}
+          {when}
+        </span>
+      </p>
+      <p className="timeline-meta">
+        {EMAIL_KIND_LABEL[e.kind]}
+        {e.created_by_email ? ` · ${e.created_by_email}` : ''}
+        {e.status === 'fallido' && e.last_error ? ` · ${e.last_error}` : ''}
+        {e.status === 'cancelado' && e.cancel_reason ? ` · ${e.cancel_reason}` : ''}
+      </p>
+      <details className="disclosure">
+        <summary>Ver el texto</summary>
+        <p className="timeline-body">{e.body}</p>
+      </details>
+      <p>
+        <Link className="text-link" to={`/emails?email=${e.id}`}>
+          Abrir en Emails
+        </Link>
+      </p>
+    </li>
+  )
+}
+
+function ComposeForm({
+  personId,
+  name,
+  onCancel,
+  onQueued,
+}: {
+  personId: string
+  name: string
+  onCancel: () => void
+  onQueued: () => Promise<void>
+}) {
+  const toast = useToast()
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!subject.trim() || !body.trim()) {
+      setError('Escribí el asunto y el texto del email.')
+      return
+    }
+    setError(null)
+    setBusy(true)
+    let id: string
+    try {
+      id = await composeEmail(personId, subject.trim(), body.trim())
+    } catch (err) {
+      setError(errorMessage(err, 'No pudimos guardar el email.'))
+      setBusy(false)
+      return
+    }
+    // El email ya quedó guardado: si el envío falla, sigue en la cola.
+    try {
+      toast.show(sendResultText(await sendNow([id])))
+    } catch {
+      toast.show('Guardamos el email, pero no pudimos mandarlo ahora. Sale solo en unos minutos.', 'error')
+    }
+    setBusy(false)
+    await onQueued()
+  }
+
+  return (
+    <form className="panel stack-md" onSubmit={handleSubmit} noValidate aria-labelledby="escribir-email">
+      <h2 id="escribir-email" className="h-md">
+        Email para {name}
+      </h2>
+      <p className="text-muted">
+        Sale desde el remitente del CRM y queda en el historial. No hace falta que veas su email: el CRM lo completa.
+      </p>
+      <div className="field">
+        <label htmlFor="email-asunto">Asunto</label>
+        <input id="email-asunto" value={subject} maxLength={300} onChange={(e) => setSubject(e.target.value)} />
+      </div>
+      <div className="field">
+        <label htmlFor="email-texto">Texto</label>
+        <textarea id="email-texto" rows={8} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} />
+      </div>
+      {error && (
+        <p className="form-note form-note-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="form-actions">
+        <button type="submit" className="btn btn-solid" disabled={busy} aria-busy={busy}>
+          {busy ? 'Enviando…' : 'Enviar'}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+          Cancelar
+        </button>
+      </div>
+    </form>
   )
 }
 

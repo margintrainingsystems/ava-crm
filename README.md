@@ -4,7 +4,7 @@ Herramienta de trabajo diario que la dueña de AVA comparte con su equipo: perso
 
 **Núcleo** (`https://ava-nucleo.netlify.app`, repo `ava-nucleo`) es el panel privado de la dueña: desde ahí administra el sitio y también el CRM (equipo, roles y permisos, auditoría y configuración). Los dos usan el mismo proyecto de Supabase.
 
-Hoy el CRM tiene las **fases 0, 1 y 2**: acceso con permisos por rol, personas, mensajes, plazos legales, pedidos de datos, consentimientos y retención. Las demás secciones se suman por fases (ver "Hoja de ruta").
+Hoy el CRM tiene las **fases 0 a 3**: acceso con permisos por rol, personas, mensajes, plazos legales, pedidos de datos, consentimientos, retención y emails (listos para activar con Resend). Las demás secciones se suman por fases (ver "Hoja de ruta").
 
 ## Qué podés hacer hoy
 
@@ -16,6 +16,8 @@ Hoy el CRM tiene las **fases 0, 1 y 2**: acceso con permisos por rol, personas, 
 - **Pedidos de datos** (permiso "Gestionar pedidos de datos"): registrar pedidos de acceso, rectificación o supresión (Ley 25.326) que llegan por email o WhatsApp. La base calcula el vencimiento: 10 días corridos para el acceso y 5 días hábiles para el resto, salteando fines de semana y los feriados cargados en Núcleo. Cada pedido tiene un código `DAT-XXXXXX`, marca de identidad verificada, nota de cierre y aviso si la persona pidió acceso hace menos de seis meses. Si se borra a la persona, el pedido queda como constancia.
 - **Consentimientos**: cada casilla que marca alguien en el sitio (privacidad, mayor de 18, publicar su nombre) queda como constancia que no se edita. La ficha muestra el estado actual, el historial y permite registrar que la persona retiró la autorización para publicar su nombre.
 - **Retención** (permiso "Borrar datos personales"): lista los formularios que cumplieron el plazo de la Política de privacidad (contacto: 2 años desde el último intercambio; arrepentimiento y baja: 3 años). Nada se borra solo: se eligen y se confirma. Si una persona queda sin formularios, se borra su ficha.
+- **Emails**: cada pedido de arrepentimiento o baja deja en cola su email de confirmación con la plantilla guardada. Si sale bien, el pedido queda confirmado solo; si alguien lo confirma a mano antes, el email se cancela. Desde cada ficha se puede escribir un email: la dirección la completa la base, así que no hace falta ver el email de la persona. La pantalla Emails muestra la cola, los enviados, los que fallaron (con el error de Resend) y los cancelados, con "Enviar ahora" y "Cancelar el envío". Todo email queda en la ficha y en "Descargar sus datos".
+- **Configuración** (permiso "Editar la configuración"): remitente, email para respuestas, confirmación automática sí o no, plantillas con vista previa, revisión de la conexión con Resend y email de prueba.
 - **Cierre de sesión automático** después de una hora sin actividad.
 - La dueña ve además el link **Administrar en Núcleo**.
 
@@ -27,7 +29,7 @@ Hoy el CRM tiene las **fases 0, 1 y 2**: acceso con permisos por rol, personas, 
 | CRM → Roles y permisos | Crear roles y elegir sus permisos de la lista fija. Los sensibles van marcados |
 | CRM → Auditoría | Quién abrió fichas, descargó datos o cambió algo, y cuándo. Nadie la puede editar ni borrar |
 | CRM → Feriados | Los días que no cuentan como hábiles para los plazos. Se cargan pegando la lista oficial; al cargar o borrar uno, los plazos pendientes se recalculan |
-| (fase 4) Configuración | Cupo, plantillas de email y plazos. Se puede delegar con el permiso "Editar la configuración" |
+| CRM → Emails y plantillas | Abre CRM → Configuración. La pantalla vive en el CRM para poder delegarla con el permiso "Editar la configuración". El cupo se suma ahí en la fase 4 |
 
 La base aplica las mismas reglas: equipo, roles y auditoría solo los lee y cambia la propietaria del CRM, venga el pedido de Núcleo o de cualquier otro lado.
 
@@ -38,7 +40,8 @@ La base aplica las mismas reglas: equipo, roles y auditoría solo los lee y camb
 | Interfaz | React 19 + TypeScript + Vite, publicada en Netlify |
 | Datos y login | Supabase: proyecto `mryuhzpenzpyhfidwsup` (São Paulo) |
 | Seguridad | Políticas RLS en cada tabla del CRM. La interfaz oculta lo que no te corresponde, pero la base es la que bloquea |
-| Invitaciones | Edge Function `crm-equipo`, que llama Núcleo. Es la única pieza que usa la `service_role` |
+| Invitaciones | Edge Function `crm-equipo`, que llama Núcleo |
+| Emails | Cola en la base (`crm_emails`) + Edge Function `crm-emails`, que manda con Resend. Un cron de `pg_cron` la despierta cada minuto si hay algo en cola. Las dos funciones son las únicas piezas que usan la `service_role` |
 | Emails | Supabase Auth con el SMTP de Resend (ver "Configuración pendiente en Supabase") |
 
 ```
@@ -117,6 +120,9 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_person_notes` | Notas internas sobre cada persona |
 | `crm_holidays` | Feriados. Los lee el equipo; solo la propietaria los carga (desde Núcleo) |
 | `crm_data_requests` | Pedidos de acceso, rectificación y supresión. El vencimiento lo calcula un trigger |
+| `crm_email_settings` | Remitente, respuestas, confirmación automática y si Resend está listo (una sola fila) |
+| `crm_email_templates` | Plantillas de email con marcadores `{nombre}` y `{codigo}` |
+| `crm_emails` | Cola e historial de emails. Se borran con la persona |
 | `crm_consents` | Constancias de consentimiento. Se crean solas con cada formulario y no se editan |
 | `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
 
@@ -147,11 +153,12 @@ Protecciones de la fila de la propietaria: nadie la puede modificar ni borrar de
 
 ### Probar los permisos
 
-Tres scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
+Cuatro scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
 
 - `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
 - `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
 - `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (44 reglas).
+- `fase3_emails.sql`: cola, confirmación automática, cancelación al confirmar a mano, reintentos, plantillas, remitente y permisos (40 reglas). No manda emails: simula a la Edge Function.
 
 Terminan con un error a propósito para que Postgres revierta todo. Correlos en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
 
@@ -173,6 +180,25 @@ Acciones: `invitar`, `reenviar` y `estado`. La llama Núcleo desde Equipo y solo
 
 Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
 
+## Edge Function `crm-emails`
+
+Acciones: `procesar` (la llama el cron con un token que vive en el Vault de Supabase), `estado`, `enviar` y `probar` (las llama el CRM con la sesión de quien usa la pantalla; la base revisa el permiso).
+
+- Manda texto plano con la API de Resend, de a uno y con pausa (el plan inicial de Resend acepta 2 por segundo). Cada envío lleva una clave de idempotencia para no duplicarse.
+- Tres intentos por email: a los 5 minutos, a los 30 y después queda "Con error". El cron solo toma lo pendiente de los últimos 7 días; lo más viejo espera un "Enviar ahora".
+- Sin clave de Resend o sin remitente no manda nada ni crea emails de prueba: responde qué falta y el cron vuelve a revisar cada 30 minutos.
+
+### Cómo activar los envíos
+
+1. En Resend, verificá el dominio desde el que vas a mandar (registros DNS en Cloudflare).
+2. En Resend, creá una clave de API con permiso de envío.
+3. En Supabase → Edge Functions → Secrets, creá `RESEND_API_KEY` con esa clave.
+4. En CRM → Configuración, cargá el email remitente (del dominio verificado) y, si querés, el email para respuestas.
+5. Tocá "Revisar la conexión" y mandate un email de prueba.
+6. Antes del primer envío real, sumá a Resend (Estados Unidos) en la Política de privacidad del sitio.
+
+Esto es independiente del SMTP de Supabase Auth (invitaciones y contraseñas), que también se configura con Resend.
+
 ## Reglas para seguir construyendo
 
 - Todo texto de la interfaz va en español rioplatense, sin notas de desarrollo visibles.
@@ -190,7 +216,7 @@ Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
 | 0 | Acceso, equipo, roles, permisos y auditoría (la administración quedó en Núcleo). **Hecha** |
 | 1 | Personas y Mensajes: todo lo que hacía Núcleo → Mensajes, con una ficha por persona. **Hecha** |
 | 2 | Bandeja "Hoy", pedidos de datos, días hábiles de Argentina, consentimientos y retención de datos. **Hecha** |
-| 3 | Emails automáticos con Resend, empezando por la confirmación de pedidos en 24 horas |
+| 3 | Emails con Resend: cola, confirmación automática de pedidos, emails desde la ficha y plantillas. **Hecha**, falta activar Resend |
 | 4 | Pagos con Mercado Pago y PayPal, suscripciones, cupo y sorteo de becas |
 | 5 | Campus propio (repo aparte) y certificados con verificación por QR |
 | 6 | IA, Discord, WhatsApp Business y SYNKA |

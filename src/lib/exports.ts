@@ -80,6 +80,9 @@ export function personDataPackage(detail: PersonDetail, generatedAt: Date = new 
         otorgado: c.granted,
         origen: c.source,
       })),
+      emails: (detail.emails ?? [])
+        .filter((e) => e.status === 'enviado')
+        .map((e) => ({ fecha: e.sent_at, asunto: e.subject, texto: e.body })),
       notas_internas: detail.notes.map((n) => ({ fecha: n.created_at, texto: n.body })),
     },
     null,

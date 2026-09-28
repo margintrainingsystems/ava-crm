@@ -16,6 +16,7 @@ import {
   saveMessageNotes,
   setMessageStatus,
 } from '../lib/crm'
+import { fetchTemplates, type EmailTemplate } from '../lib/emails'
 import { errorMessage } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import {
@@ -62,6 +63,8 @@ export function MessagesPage() {
   const [params] = useSearchParams()
   const openParam = params.get('mensaje')
   const page = useAsync(fetchMessages)
+  // Si no cargan, el email de confirmación usa el texto de siempre.
+  const templates = useAsync(fetchTemplates)
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [tab, setTab] = useState<Tab>('todos')
   const [includeArchived, setIncludeArchived] = useState(false)
@@ -233,6 +236,7 @@ export function MessagesPage() {
                 <div id={`mensaje-${m.id}`} className="message-detail">
                   <MessageDetail
                     m={m}
+                    templates={templates.data ?? []}
                     draft={drafts[m.id]}
                     onDraft={(value) => setDrafts((d) => ({ ...d, [m.id]: value }))}
                     onSaved={(notes) => {
@@ -312,6 +316,7 @@ function MessageSummary({ m }: { m: Message }) {
 
 type DetailProps = {
   m: Message
+  templates: EmailTemplate[]
   draft: string | undefined
   onDraft: (value: string) => void
   onSaved: (notes: string) => void
@@ -320,13 +325,13 @@ type DetailProps = {
   onDelete: () => void
 }
 
-function MessageDetail({ m, draft, onDraft, onSaved, onConfirmed, onStatus, onDelete }: DetailProps) {
+function MessageDetail({ m, templates, draft, onDraft, onSaved, onConfirmed, onStatus, onDelete }: DetailProps) {
   const { access } = useMember()
   const toast = useToast()
   const [busy, setBusy] = useState<'notes' | 'confirm' | null>(null)
   const request = isRequest(m.source)
   const notes = draft ?? m.notes ?? ''
-  const reply = request ? confirmationHref(m) : replyHref(m)
+  const reply = request ? confirmationHref(m, templates) : replyHref(m)
   const whatsapp = whatsappHref(m.phone)
 
   async function saveNotes() {

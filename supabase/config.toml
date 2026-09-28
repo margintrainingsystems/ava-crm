@@ -4,3 +4,7 @@ project_id = "mryuhzpenzpyhfidwsup"
 [functions.crm-equipo]
 # La función verifica la sesión por su cuenta (ver README, sección "Edge Function").
 verify_jwt = false
+
+[functions.crm-emails]
+# La llaman el cron (con el token del Vault) y el CRM (con la sesión): verifica por su cuenta.
+verify_jwt = false

@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import { readyState, renderWithAuth } from '../test/renderWithAuth'
-import { HomePage, hasPending } from './HomePage'
+import { HomePage, hasPending, requestEmailText } from './HomePage'
 import type { Today } from '../lib/compliance'
 
 const api = vi.hoisted(() => ({ fetchToday: vi.fn(), fetchPermissions: vi.fn() }))
@@ -26,9 +26,11 @@ describe('HomePage (Hoy)', () => {
       requests: [
         {
           id: 'r1', source: 'baja', request_code: 'BAJ-ABC123', name: 'Ana', created_at: '2026-09-28T10:00:00Z',
-          deadline: '2999-01-01T00:00:00Z',
+          deadline: '2999-01-01T00:00:00Z', email_status: 'pendiente',
         },
       ],
+      email_ready: false,
+      failed_emails: 2,
       data_requests: [
         {
           id: 'd1', code: 'DAT-XYZ234', kind: 'supresion', name: 'Bea Gómez', due_date: '2026-10-05', days_left: 7,
@@ -45,6 +47,8 @@ describe('HomePage (Hoy)', () => {
       'href',
       '/pedidos-de-datos?pedido=d1',
     )
+    expect(screen.getByText(/confirmalo a mano: los envíos automáticos no están activos/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Revisalos en Emails' })).toHaveAttribute('href', '/emails')
     expect(screen.getByText('Vence en 7 días')).toBeInTheDocument()
     expect(screen.getByText(/identidad sin verificar/)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Mensajes sin leer' })).not.toBeInTheDocument()
@@ -71,6 +75,12 @@ describe('HomePage (Hoy)', () => {
     api.fetchToday.mockResolvedValue({ ...base, unread: [], unread_count: 0 })
     renderWithAuth(<HomePage />, readyState({}, ['mensajes.ver']))
     expect(await screen.findByText('Todo al día: no hay nada pendiente en tus secciones.')).toBeInTheDocument()
+  })
+
+  it('dice qué pasa con el email de confirmación de cada pedido', () => {
+    expect(requestEmailText('pendiente', true)).toMatch(/sale en unos minutos/)
+    expect(requestEmailText('fallido', true)).toMatch(/falló/)
+    expect(requestEmailText(null, true)).toMatch(/sin email automático/)
   })
 
   it('reconoce lo pendiente', () => {

@@ -14,3 +14,4 @@ Leé el README antes de cambiar algo. Resumen de lo que no se negocia:
 - Diseño: tokens en `src/styles/tokens.css`. Verde como color principal; acentos solo en detalles. Sin glassmorphism, sin cajas de métricas en grupos de 3 o 4, sin etiquetas decorativas sobre los títulos, sin métricas inventadas.
 - Si falta una definición (cupo, plataforma del Campus, textos legales), preguntale a la dueña. No la completes por tu cuenta.
 - Los plazos legales se calculan en la base (`crm_private.crm_add_business_days`, triggers de `crm_data_requests`). Los feriados los carga la dueña desde Núcleo con la lista oficial: nunca los cargues de memoria.
+- Los emails salen solo por la cola `crm_emails` y la Edge Function `crm-emails`. La clave de Resend vive únicamente como secreto de esa función. Nunca mandes emails reales en las pruebas: simulá la función con `crm_email_claim` y `crm_email_mark`.

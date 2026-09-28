@@ -187,6 +187,75 @@ export type Database = {
           },
         ]
       }
+      crm_email_settings: {
+        Row: {
+          auto_confirm: boolean
+          from_address: string | null
+          from_name: string
+          id: number
+          provider_checked_at: string | null
+          provider_ready: boolean
+          reply_to: string | null
+          updated_at: string
+          updated_by_email: string | null
+        }
+        Insert: {
+          auto_confirm?: boolean
+          from_address?: string | null
+          from_name?: string
+          id?: number
+          provider_checked_at?: string | null
+          provider_ready?: boolean
+          reply_to?: string | null
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Update: {
+          auto_confirm?: boolean
+          from_address?: string | null
+          from_name?: string
+          id?: number
+          provider_checked_at?: string | null
+          provider_ready?: boolean
+          reply_to?: string | null
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Relationships: []
+      }
+      crm_email_templates: {
+        Row: {
+          body: string
+          description: string
+          key: string
+          name: string
+          placeholders: string[]
+          subject: string
+          updated_at: string
+          updated_by_email: string | null
+        }
+        Insert: {
+          body: string
+          description?: string
+          key: string
+          name: string
+          placeholders?: string[]
+          subject: string
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Update: {
+          body?: string
+          description?: string
+          key?: string
+          name?: string
+          placeholders?: string[]
+          subject?: string
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Relationships: []
+      }
       crm_holidays: {
         Row: {
           created_at: string
@@ -761,6 +830,45 @@ export type Database = {
           resolved_at: string
           resolved_on_time: boolean
           status: string
+        }[]
+      }
+      crm_email_cancel: { Args: { p_id: string }; Returns: undefined }
+      crm_email_compose: {
+        Args: { p_body: string; p_lead_id?: string; p_person_id: string; p_subject: string }
+        Returns: string
+      }
+      crm_email_request_send: { Args: { p_id: string }; Returns: undefined }
+      crm_email_settings_save: {
+        Args: { p_auto_confirm: boolean; p_from_address: string; p_from_name: string; p_reply_to: string }
+        Returns: undefined
+      }
+      crm_email_template_save: {
+        Args: { p_body: string; p_key: string; p_subject: string }
+        Returns: undefined
+      }
+      crm_email_test: { Args: { p_to: string }; Returns: string }
+      crm_emails_list: {
+        Args: never
+        Returns: {
+          attempts: number
+          body: string
+          can_handle: boolean
+          cancel_reason: string
+          contact_hidden: boolean
+          created_at: string
+          created_by_email: string
+          id: string
+          kind: string
+          last_error: string
+          lead_id: string
+          lead_source: string
+          person_id: string
+          person_name: string
+          sent_at: string
+          status: string
+          subject: string
+          template_key: string
+          to_email: string
         }[]
       }
       crm_log: {

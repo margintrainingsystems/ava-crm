@@ -1,7 +1,9 @@
 import { Route, Routes } from 'react-router-dom'
 import { AppLayout, MESSAGE_PERMISSIONS } from './components/AppLayout'
 import { RequireAccess, RequireAuth } from './components/Guards'
+import { ConfigPage } from './pages/ConfigPage'
 import { DataRequestsPage } from './pages/DataRequestsPage'
+import { EmailsPage } from './pages/EmailsPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -63,6 +65,22 @@ export function App() {
           element={
             <RequireAccess permission="personas.borrar">
               <RetentionPage />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="emails"
+          element={
+            <RequireAccess anyOf={MESSAGE_PERMISSIONS}>
+              <EmailsPage />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="configuracion"
+          element={
+            <RequireAccess permission="configuracion.editar">
+              <ConfigPage />
             </RequireAccess>
           }
         />

@@ -560,6 +560,10 @@
   border-color: var(--green);
   color: var(--green);
 }
+.status-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
 .request-state {
   font-weight: 600;
 }
@@ -783,4 +787,51 @@ fieldset.field {
   accent-color: var(--green);
   width: 18px;
   height: 18px;
+}
+
+/* --- Emails y configuración --- */
+.steps {
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  padding: 1px 5px;
+  border-radius: var(--radius-s);
+  background: var(--bg-raised-2);
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+@media (max-width: 900px) {
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.email-preview {
+  padding: 16px 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-m);
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+.email-preview-subject {
+  font-weight: 700;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.timeline-email::before {
+  background: var(--bg);
+  border: 2px solid var(--green);
+}
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
 }

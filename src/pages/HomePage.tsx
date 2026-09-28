@@ -12,6 +12,7 @@ import {
   isPast,
   yearsText,
   type Today,
+  type TodayRequest,
 } from '../lib/compliance'
 import { NUCLEO_URL } from '../lib/config'
 import { firstName, formatDateTime, plural } from '../lib/format'
@@ -20,10 +21,25 @@ import { groupPermissions } from '../lib/permissions'
 import { fetchPermissions } from '../lib/queries'
 import { useAsync } from '../lib/useAsync'
 
+// Qué pasa con el email de confirmación de cada pedido.
+export function requestEmailText(status: TodayRequest['email_status'], ready?: boolean): string {
+  if (status === 'pendiente' || status === 'enviando') {
+    return ready ? ' · el email de confirmación sale en unos minutos' : ' · confirmalo a mano: los envíos automáticos no están activos'
+  }
+  if (status === 'fallido') return ' · el email automático falló: confirmalo a mano'
+  if (status === 'cancelado') return ' · el email automático se canceló: confirmalo a mano'
+  return ' · sin email automático: confirmalo a mano'
+}
+
 // Hay algo para hacer hoy en alguna de las secciones que el rol puede ver.
 export function hasPending(t: Today): boolean {
   return Boolean(
-    t.requests?.length || t.data_requests?.length || t.unread_count || t.expired_count || t.missing_holiday_years?.length,
+    t.requests?.length ||
+      t.data_requests?.length ||
+      t.unread_count ||
+      t.expired_count ||
+      t.missing_holiday_years?.length ||
+      t.failed_emails,
   )
 }
 
@@ -115,6 +131,7 @@ function TodayPanels({ t, isOwner }: { t: Today; isOwner: boolean }) {
                       </span>
                       <span className="today-sub">
                         {r.name ?? 'Sin nombre'} · llegó el {formatDateTime(r.created_at)}
+                        {requestEmailText(r.email_status, t.email_ready)}
                       </span>
                     </Link>
                     <span className={late ? 'due due-late' : 'due due-soon'}>{hoursLeftText(r.deadline)}</span>
@@ -191,6 +208,15 @@ function TodayPanels({ t, isOwner }: { t: Today; isOwner: boolean }) {
             </>
           )}
         </section>
+      )}
+
+      {Boolean(t.failed_emails) && (
+        <p className="panel panel-warning">
+          {plural(t.failed_emails ?? 0, 'email no pudo salir', 'emails no pudieron salir')}.{' '}
+          <Link className="text-link" to="/emails">
+            Revisalos en Emails
+          </Link>
+        </p>
       )}
 
       {Boolean(t.expired_count) && (

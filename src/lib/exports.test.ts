@@ -46,6 +46,18 @@ describe('exportaciones', () => {
             },
           ],
           data_requests: null,
+          emails: [
+            {
+              id: 'e1', kind: 'manual', lead_source: null, subject: 'Hola', body: 'Te cuento', status: 'enviado',
+              created_at: m.created_at, sent_at: m.created_at, created_by_email: 'x@example.com', last_error: null,
+              cancel_reason: null,
+            },
+            {
+              id: 'e2', kind: 'manual', lead_source: null, subject: 'Borrador', body: 'No salió', status: 'cancelado',
+              created_at: m.created_at, sent_at: null, created_by_email: 'x@example.com', last_error: null,
+              cancel_reason: 'x',
+            },
+          ],
         },
         new Date('2026-09-28T15:00:00Z'),
       ),
@@ -54,6 +66,8 @@ describe('exportaciones', () => {
     expect(json.mensajes[0].tipo).toBe('Lista de espera')
     expect(json.mensajes[0].declaro_ser_mayor).toBe(true)
     expect(json.notas_internas[0]).toEqual({ fecha: m.created_at, texto: 'Llamé' })
+    // Solo los emails que le llegaron.
+    expect(json.emails).toEqual([{ fecha: m.created_at, asunto: 'Hola', texto: 'Te cuento' }])
     expect(json.constancias_de_consentimiento[0]).toEqual({
       fecha: m.created_at, tipo: 'Publicar su nombre si gana una beca', otorgado: false, origen: 'equipo',
     })

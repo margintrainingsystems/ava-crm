@@ -13,7 +13,9 @@ describe('visibleNav', () => {
       '/mensajes',
       '/personas',
       '/pedidos-de-datos',
+      '/emails',
       '/retencion',
+      '/configuracion',
     ])
   })
 
@@ -26,6 +28,11 @@ describe('visibleNav', () => {
     expect(visibleNav({ isOwner: false, permissions: new Set(['pedidos.gestionar']) }).map((i) => i.to)).toEqual([
       '/',
       '/mensajes',
+      '/emails',
+    ])
+    expect(visibleNav({ isOwner: false, permissions: new Set(['configuracion.editar']) }).map((i) => i.to)).toEqual([
+      '/',
+      '/configuracion',
     ])
     expect(
       visibleNav({ isOwner: false, permissions: new Set(['derechos.gestionar', 'personas.borrar']) }).map((i) => i.to),

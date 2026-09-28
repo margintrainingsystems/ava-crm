@@ -1,5 +1,6 @@
 import type { Consent, DataRequestKind, DataRequestStatus } from './compliance'
 import type { Json } from './database.types'
+import type { PersonEmail } from './emails'
 import type { Message, Status } from './messages'
 import { supabase } from './supabase'
 
@@ -96,6 +97,7 @@ export type PersonDetail = {
   consents: Consent[]
   // Null cuando el rol no gestiona pedidos de datos.
   data_requests: PersonDataRequest[] | null
+  emails: PersonEmail[]
 }
 
 export async function fetchPerson(id: string): Promise<PersonDetail> {
