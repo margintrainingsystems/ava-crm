@@ -8,6 +8,7 @@ import {
   fetchEmailSettings,
   fetchTemplates,
   renderTemplate,
+  sampleValues,
   saveEmailSettings,
   saveTemplate,
   sendResultText,
@@ -21,8 +22,6 @@ import { formatDateTime } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 import { isValidEmail } from '../lib/validation'
 import { EnrollmentSection, FxSection } from './ConfigBilling'
-
-const SAMPLE: Record<string, string> = { nombre: 'Lucía', codigo: 'ARR-7KQ2MX' }
 
 export function ConfigPage() {
   const settings = useAsync(fetchEmailSettings)
@@ -329,8 +328,8 @@ function TemplateForm({ template, onSaved }: { template: EmailTemplate; onSaved:
         <div className="stack-sm" aria-label={`Vista previa de ${template.name}`} role="group">
           <p className="field-label">Así se ve (con datos de ejemplo)</p>
           <div className="email-preview">
-            <p className="email-preview-subject">{renderTemplate(subject, SAMPLE)}</p>
-            <p className="message-text">{renderTemplate(body, SAMPLE)}</p>
+            <p className="email-preview-subject">{renderTemplate(subject, sampleValues(template.key))}</p>
+            <p className="message-text">{renderTemplate(body, sampleValues(template.key))}</p>
           </div>
         </div>
       </div>

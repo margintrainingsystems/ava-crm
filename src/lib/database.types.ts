@@ -928,6 +928,7 @@ export type Database = {
           refunded: number
         }[]
       }
+      crm_raffle_announce: { Args: { p_date: string }; Returns: number }
       crm_raffle_close: { Args: { p_id: string }; Returns: undefined }
       crm_raffle_draw: { Args: { p_id: string }; Returns: Json }
       crm_raffle_notify: { Args: { p_pick_id: string }; Returns: undefined }

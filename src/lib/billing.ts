@@ -320,10 +320,19 @@ export type Raffle = {
   picks: RafflePick[]
 }
 
+export type RaffleAnnouncement = {
+  raffle_date: string
+  created_at: string
+  created_by_email: string | null
+  recipients: number
+  sent: number
+}
+
 export type RaffleView = {
   enrollments_open: boolean
   opened_at: string | null
   waitlist_count: number
+  announcement: RaffleAnnouncement | null
   raffles: Raffle[]
 }
 
@@ -331,6 +340,13 @@ export async function fetchRaffles(): Promise<RaffleView> {
   const { data, error } = await supabase.rpc('crm_raffle_view')
   if (error) throw error
   return data as unknown as RaffleView
+}
+
+// Manda la fecha del sorteo a toda la lista de espera. Devuelve cuántos emails quedaron en cola.
+export async function announceRaffle(date: string): Promise<number> {
+  const { data, error } = await supabase.rpc('crm_raffle_announce', { p_date: date })
+  if (error) throw error
+  return data
 }
 
 export async function prepareRaffle(scheduledFor: string): Promise<string> {

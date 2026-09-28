@@ -8,6 +8,7 @@ import { Loading } from '../components/StatusScreens'
 import { useToast } from '../components/Toast'
 import {
   PICK_STATUS_LABEL,
+  announceRaffle,
   closeRaffle,
   drawRaffle,
   drawnNumbers,
@@ -16,6 +17,7 @@ import {
   prepareRaffle,
   resolvePick,
   type Raffle,
+  type RaffleAnnouncement,
   type RafflePick,
 } from '../lib/billing'
 import { formatDay, toLocalInput } from '../lib/compliance'
@@ -23,6 +25,13 @@ import { errorMessage } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { can } from '../lib/permissions'
 import { useAsync } from '../lib/useAsync'
+
+// Suma días a una fecha YYYY-MM-DD sin pasar por la zona horaria.
+export function addDays(day: string, days: number): string {
+  const d = new Date(`${day}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 
 // Quién tiene que hacer algo con cada persona sorteada.
 export function pickHint(p: Pick<RafflePick, 'status' | 'respond_by' | 'beca_until' | 'subscription_id'>, today: string): string {
@@ -62,8 +71,20 @@ export function RafflePage() {
       {page.loading && !view && <Loading />}
       {Boolean(page.error) && <LoadError error={page.error} onRetry={page.reload} />}
 
+      {view && current?.status !== 'sorteado' && (
+        <AnnounceSection
+          key={view.announcement?.created_at ?? 'sin-aviso'}
+          announcement={view.announcement}
+          waitlist={view.waitlist_count}
+          today={today}
+          onDone={page.reload}
+        />
+      )}
+
       {view && !current && (
         <PrepareForm
+          key={view.announcement?.raffle_date ?? today}
+          announcedDate={view.announcement?.raffle_date ?? null}
           openedAt={view.opened_at}
           enrollmentsOpen={view.enrollments_open}
           waitlist={view.waitlist_count}
@@ -94,13 +115,104 @@ export function RafflePage() {
   )
 }
 
+function AnnounceSection({
+  announcement,
+  waitlist,
+  today,
+  onDone,
+}: {
+  announcement: RaffleAnnouncement | null
+  waitlist: number
+  today: string
+  onDone: () => Promise<void>
+}) {
+  const toast = useToast()
+  const earliest = addDays(today, 7)
+  const [date, setDate] = useState(earliest)
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!date || date < earliest) {
+      setError(`Las Bases piden avisar con al menos 7 días de anticipación: elegí el ${formatDay(earliest)} o una fecha posterior.`)
+      return
+    }
+    setError(null)
+    setConfirming(true)
+  }
+
+  return (
+    <section className="panel stack-md" aria-labelledby="avisar-fecha">
+      <h2 className="h-md" id="avisar-fecha">
+        Avisar la fecha del sorteo
+      </h2>
+      {announcement ? (
+        <p>
+          Avisaste que el sorteo es el <strong>{formatDay(announcement.raffle_date)}</strong>. Quedaron{' '}
+          {announcement.recipients === 1 ? '1 email' : `${announcement.recipients} emails`} en la cola y salieron{' '}
+          {announcement.sent}. A quien se anote antes de la apertura también le llega.
+        </p>
+      ) : (
+        <p>
+          Las Bases piden avisar la fecha por email a toda la lista de espera, con al menos 7 días de anticipación. Hoy
+          son <strong>{waitlist}</strong> {waitlist === 1 ? 'persona' : 'personas'}. A quien se anote después, hasta la
+          apertura, le llega sola.
+        </p>
+      )}
+      <p className="text-muted">
+        Los emails salen por la cola de Emails. Publicá también la fecha en las Bases, desde Núcleo → Contenido del sitio →
+        Términos.
+      </p>
+      <form className="inline-form" onSubmit={handleSubmit} noValidate>
+        <div className="field">
+          <label htmlFor="aviso-fecha">{announcement ? 'Cambiar la fecha' : 'Fecha del sorteo'}</label>
+          <input id="aviso-fecha" type="date" min={earliest} value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <button type="submit" className={announcement ? 'btn btn-outline' : 'btn btn-solid'}>
+          {announcement ? 'Avisar la fecha nueva' : 'Avisar a la lista'}
+        </button>
+      </form>
+      {error && (
+        <p className="form-note form-note-error" role="alert">
+          {error}
+        </p>
+      )}
+      <ConfirmDialog
+        open={confirming}
+        title="Avisar la fecha del sorteo"
+        confirmLabel="Mandar el aviso"
+        onConfirm={async () => {
+          try {
+            const n = await announceRaffle(date)
+            setConfirming(false)
+            toast.show(n === 1 ? 'Quedó 1 aviso en la cola de Emails.' : `Quedaron ${n} avisos en la cola de Emails.`)
+            await onDone()
+          } catch (e) {
+            setConfirming(false)
+            setError(errorMessage(e, 'No pudimos mandar el aviso.'))
+          }
+        }}
+        onClose={() => setConfirming(false)}
+      >
+        <p>
+          Le escribimos a cada persona mayor de 18 de la lista de espera que el sorteo es el {formatDay(date)}.
+          {announcement ? ' Es una fecha nueva: el aviso vuelve a salir para todas.' : ''}
+        </p>
+      </ConfirmDialog>
+    </section>
+  )
+}
+
 function PrepareForm({
+  announcedDate,
   openedAt,
   enrollmentsOpen,
   waitlist,
   today,
   onDone,
 }: {
+  announcedDate: string | null
   openedAt: string | null
   enrollmentsOpen: boolean
   waitlist: number
@@ -108,7 +220,7 @@ function PrepareForm({
   onDone: () => Promise<void>
 }) {
   const toast = useToast()
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState(announcedDate ?? today)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -145,8 +257,7 @@ function PrepareForm({
       ) : (
         <p className="text-muted">
           Las inscripciones todavía no se abrieron. La lista se numera después de la apertura, con quienes se anotaron
-          antes. Antes de eso, avisale la fecha del sorteo a la lista con al menos 7 días de anticipación y publicala en
-          Términos, como dicen las Bases.
+          antes.
         </p>
       )}
       <form className="inline-form" onSubmit={handleSubmit} noValidate>

@@ -19,7 +19,7 @@ Hoy el CRM tiene las **fases 0 a 3 y la primera parte de la fase 4**: acceso con
 - **Emails**: cada pedido de arrepentimiento o baja deja en cola su email de confirmación con la plantilla guardada. Si sale bien, el pedido queda confirmado solo; si alguien lo confirma a mano antes, el email se cancela. Desde cada ficha se puede escribir un email: la dirección la completa la base, así que no hace falta ver el email de la persona. La pantalla Emails muestra la cola, los enviados, los que fallaron (con el error de Resend) y los cancelados, con "Enviar ahora" y "Cancelar el envío". Todo email queda en la ficha y en "Descargar sus datos".
 - **Suscripciones** (permiso "Ver suscripciones"): la suscripción anual (todos los Másteres) y los Másteres sueltos, por estado, con el cupo ocupado. Cada una muestra sus cobros, la cotización usada, los plazos de garantía (15 días desde el alta) y de arrepentimiento (10 días corridos, hasta el siguiente día hábil) y la renovación. Con "Gestionar suscripciones": registrar un alta o una renovación, dar de baja (mantiene el acceso hasta el final del año pagado) y registrar devoluciones. Los montos solo los ve quien tiene "Ver pagos".
 - **Pagos** (permiso "Ver pagos" o "Ver reportes"): lo cobrado entre dos fechas, con subtotales por moneda (pesos y dólares por separado, sin convertir). Con "Ver pagos" también cada cobro y el CSV.
-- **Sorteo** (permiso "Gestionar el sorteo"): las 3 becas del 50% de las Bases. Numera la lista de espera por orden de inscripción (una vez por persona, solo mayores de 18, anotadas antes de la primera apertura), muestra la huella de la lista, sortea 3 titulares y 3 suplentes con números al azar criptográficos (los repetidos quedan registrados), abre una pantalla con solo números para grabar, manda el aviso por email, lleva los plazos (7 días para responder, 30 para contratar), pasa la beca al suplente y lleva al alta con beca.
+- **Sorteo** (permiso "Gestionar el sorteo"): las 3 becas del 50% de las Bases. Avisa la fecha por email a toda la lista de espera (con al menos 7 días de anticipación; a quien se anota después, hasta la apertura, le llega solo). Numera la lista de espera por orden de inscripción (una vez por persona, solo mayores de 18, anotadas antes de la primera apertura), muestra la huella de la lista, sortea 3 titulares y 3 suplentes con números al azar criptográficos (los repetidos quedan registrados), abre una pantalla con solo números para grabar, manda el aviso por email, lleva los plazos (7 días para responder, 30 para contratar), pasa la beca al suplente y lleva al alta con beca.
 - **Configuración** (permiso "Editar la configuración"): abrir y cerrar inscripciones, el cupo de suscripciones anuales (solo cuentan las anuales), la cotización del dólar blue de venta (se lee de dolarhoy.com a las 10:07 y 16:07; se puede cargar a mano), remitente, email para respuestas, confirmación automática sí o no, plantillas con vista previa, revisión de la conexión con Resend y email de prueba.
 - **Cierre de sesión automático** después de una hora sin actividad.
 - La dueña ve además el link **Administrar en Núcleo**.
@@ -132,6 +132,7 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_subscriptions` | Suscripción anual o Máster suelto de cada persona, con código `SUS-XXXXXX`, año en curso, moneda, medio y renovación |
 | `crm_payments` | Cada cobro (alta o renovación), con cotización, beca, plazos de garantía y arrepentimiento y devoluciones. Nunca guarda datos de tarjetas |
 | `crm_raffles`, `crm_raffle_entries`, `crm_raffle_draws`, `crm_raffle_picks` | Sorteo de becas: la lista numerada, cada número que salió y las personas sorteadas con su estado |
+| `crm_raffle_announcements`, `crm_raffle_announcement_sends` | Cada aviso de la fecha del sorteo y a quién se le mandó, para que nadie lo reciba dos veces |
 | `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
 
 ### Cómo se protegen las personas y los mensajes
@@ -161,13 +162,14 @@ Protecciones de la fila de la propietaria: nadie la puede modificar ni borrar de
 
 ### Probar los permisos
 
-Cinco scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
+Seis scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
 
 - `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
 - `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
 - `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (45 reglas).
 - `fase3_emails.sql`: cola, confirmación automática, cancelación al confirmar a mano, reintentos, plantillas, remitente y permisos (40 reglas). No manda emails: simula a la Edge Function.
 - `fase4_suscripciones_pagos_sorteo.sql`: lectura de dolarhoy.com, cotización a mano, cupo, altas, renovaciones, bajas, devoluciones, reporte por moneda, avisos de renovación, sorteo completo y permisos (50 reglas). No lee dolarhoy.com ni manda emails.
+- `fase4_aviso_fecha_sorteo.sql`: aviso de la fecha a la lista de espera, 7 días de anticipación, una vez por persona, llegada a quien se anota después y corte en la apertura (9 reglas).
 
 Terminan con un error a propósito para que Postgres revierta todo. Correlos en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
 

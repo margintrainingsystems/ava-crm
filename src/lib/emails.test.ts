@@ -1,4 +1,4 @@
-import { renderTemplate, sendNow, sendResultText, unknownPlaceholders } from './emails'
+import { PLACEHOLDER_HELP, renderTemplate, sampleValues, sendNow, sendResultText, unknownPlaceholders } from './emails'
 import { confirmationText } from './messages'
 
 const invoke = vi.hoisted(() => vi.fn())
@@ -55,5 +55,13 @@ describe('envíos', () => {
   it('sin respuesta legible, un mensaje general', async () => {
     invoke.mockResolvedValue({ data: null, error: { name: 'FunctionsFetchError', context: undefined } })
     await expect(sendNow(['a'])).rejects.toThrow(/No hubo respuesta del servicio de emails/)
+  })
+})
+
+describe('sampleValues', () => {
+  it('tiene un ejemplo para cada marcador y la fecha larga en el aviso del sorteo', () => {
+    expect(Object.keys(sampleValues('confirmacion_baja')).sort()).toEqual(Object.keys(PLACEHOLDER_HELP).sort())
+    expect(sampleValues('aviso_fecha_sorteo').fecha).toBe('lunes 12 de octubre de 2026')
+    expect(sampleValues('aviso_renovacion').fecha).toBe('22/09/2027')
   })
 })

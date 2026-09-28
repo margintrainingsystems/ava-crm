@@ -190,4 +190,35 @@ export function unknownPlaceholders(text: string, allowed: string[]): string[] {
 export const PLACEHOLDER_HELP: Record<string, string> = {
   nombre: 'el nombre que escribió en el formulario',
   codigo: 'el código del pedido',
+  producto: 'la suscripción anual o el Máster',
+  fecha: 'la fecha',
+  precio: 'el monto que se va a cobrar, con la moneda',
+  forma_de_cobro: 'el débito automático de Mercado Pago o de PayPal',
+  enlace_baja: 'el enlace al Botón de baja del sitio',
+  numero: 'su número en la lista de espera',
+  descuento: 'el porcentaje de la beca',
+  responder_antes: 'hasta cuándo puede responder (7 días)',
+  contratar_antes: 'hasta cuándo puede contratar con la beca (30 días)',
+  enlace_bases: 'el enlace a los Términos, donde están las Bases',
+}
+
+const SAMPLE_BASE: Record<string, string> = {
+  nombre: 'Lucía',
+  codigo: 'ARR-7KQ2MX',
+  producto: 'suscripción anual',
+  fecha: '22/09/2027',
+  precio: '$626.000 (pesos argentinos)',
+  forma_de_cobro: 'débito automático de Mercado Pago',
+  enlace_baja: 'https://aprendeconava.com/baja',
+  numero: '27',
+  descuento: '50',
+  responder_antes: '30/09/2026',
+  contratar_antes: '23/10/2026',
+  enlace_bases: 'https://aprendeconava.com/terminos',
+}
+
+// Datos de ejemplo para la vista previa. Cada plantilla escribe la fecha a su manera.
+export function sampleValues(templateKey: string): Record<string, string> {
+  if (templateKey === 'aviso_fecha_sorteo') return { ...SAMPLE_BASE, fecha: 'lunes 12 de octubre de 2026' }
+  return SAMPLE_BASE
 }

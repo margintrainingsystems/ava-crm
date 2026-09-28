@@ -1,11 +1,12 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readyState, renderWithAuth } from '../test/renderWithAuth'
-import { RafflePage, pickHint } from './RafflePage'
+import { RafflePage, addDays, pickHint } from './RafflePage'
 import type { Raffle, RafflePick, RaffleView } from '../lib/billing'
 
 const api = vi.hoisted(() => ({
   fetchRaffles: vi.fn(),
+  announceRaffle: vi.fn(),
   prepareRaffle: vi.fn(),
   drawRaffle: vi.fn(),
   notifyPick: vi.fn(),
@@ -37,7 +38,7 @@ function raffle(partial: Partial<Raffle>): Raffle {
 }
 
 const view = (partial: Partial<RaffleView>): RaffleView => ({
-  enrollments_open: true, opened_at: '2026-10-01T12:00:00Z', waitlist_count: 40, raffles: [], ...partial,
+  enrollments_open: true, opened_at: '2026-10-01T12:00:00Z', waitlist_count: 40, announcement: null, raffles: [], ...partial,
 })
 
 describe('pickHint', () => {
@@ -46,6 +47,13 @@ describe('pickHint', () => {
     expect(pickHint(pick({ status: 'avisada', respond_by: '2026-10-08' }), '2026-10-09')).toMatch(/^Pasó el plazo/)
     expect(pickHint(pick({ status: 'acepto', subscription_id: 's1' }), '2026-10-09')).toBe('Ya contrató con la beca.')
     expect(pickHint(pick({ status: 'rechazo' }), '2026-10-09')).toBe('La beca pasó al suplente siguiente.')
+  })
+})
+
+describe('addDays', () => {
+  it('suma días sin correrse por la zona horaria', () => {
+    expect(addDays('2026-09-28', 7)).toBe('2026-10-05')
+    expect(addDays('2026-12-28', 7)).toBe('2027-01-04')
   })
 })
 
@@ -132,5 +140,32 @@ describe('RafflePage', () => {
     expect(api.resolvePick).not.toHaveBeenCalled()
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Pasar al suplente' }))
     expect(api.resolvePick).toHaveBeenCalledWith('k1', 'sin_respuesta')
+  })
+
+  it('avisa la fecha a la lista con confirmación y no acepta menos de 7 días', async () => {
+    api.fetchRaffles.mockResolvedValue(view({ enrollments_open: false, opened_at: null }))
+    api.announceRaffle.mockResolvedValue(40)
+    renderWithAuth(<RafflePage />, readyState({}, ['sorteo.gestionar']))
+    const input = await screen.findByLabelText('Fecha del sorteo', { selector: '#aviso-fecha' })
+    await userEvent.clear(input)
+    await userEvent.type(input, '2020-01-01')
+    await userEvent.click(screen.getByRole('button', { name: 'Avisar a la lista' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('al menos 7 días de anticipación')
+    await userEvent.clear(input)
+    await userEvent.type(input, '2099-01-10')
+    await userEvent.click(screen.getByRole('button', { name: 'Avisar a la lista' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mandar el aviso' }))
+    expect(api.announceRaffle).toHaveBeenCalledWith('2099-01-10')
+  })
+
+  it('muestra el aviso mandado y usa esa fecha para numerar la lista', async () => {
+    api.fetchRaffles.mockResolvedValue(
+      view({
+        announcement: { raffle_date: '2026-10-20', created_at: '2026-10-01T12:00:00Z', created_by_email: null, recipients: 40, sent: 12 },
+      }),
+    )
+    renderWithAuth(<RafflePage />, readyState({}, ['sorteo.gestionar']))
+    expect(await screen.findByText(/Quedaron 40 emails en la cola y salieron 12/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha del sorteo', { selector: '#sorteo-fecha' })).toHaveValue('2026-10-20')
   })
 })
