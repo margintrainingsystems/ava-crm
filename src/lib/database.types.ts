@@ -65,6 +65,149 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_consents: {
+        Row: {
+          granted: boolean
+          id: string
+          kind: string
+          lead_id: string | null
+          person_id: string
+          recorded_at: string
+          recorded_by: string | null
+          recorded_by_email: string | null
+          source: string
+        }
+        Insert: {
+          granted: boolean
+          id?: string
+          kind: string
+          lead_id?: string | null
+          person_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_email?: string | null
+          source: string
+        }
+        Update: {
+          granted?: boolean
+          id?: string
+          kind?: string
+          lead_id?: string | null
+          person_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          recorded_by_email?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_consents_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_consents_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "crm_people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_data_requests: {
+        Row: {
+          channel: string
+          code: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          detail: string | null
+          due_date: string
+          id: string
+          identity_verified: boolean
+          kind: string
+          person_id: string | null
+          received_at: string
+          requester_email: string | null
+          requester_name: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          detail?: string | null
+          due_date: string
+          id?: string
+          identity_verified?: boolean
+          kind: string
+          person_id?: string | null
+          received_at: string
+          requester_email?: string | null
+          requester_name?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          detail?: string | null
+          due_date?: string
+          id?: string
+          identity_verified?: boolean
+          kind?: string
+          person_id?: string | null
+          received_at?: string
+          requester_email?: string | null
+          requester_name?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_data_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "crm_people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_holidays: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       crm_members: {
         Row: {
           active: boolean
@@ -570,6 +713,56 @@ export type Database = {
           last_sign_in_at: string
         }[]
       }
+      crm_consent_withdraw: {
+        Args: { p_kind: string; p_person_id: string }
+        Returns: number
+      }
+      crm_data_request_close: {
+        Args: { p_id: string; p_note: string; p_status: string }
+        Returns: undefined
+      }
+      crm_data_request_create: {
+        Args: {
+          p_channel?: string
+          p_detail?: string
+          p_kind: string
+          p_person_id?: string
+          p_received_at: string
+          p_requester_email?: string
+          p_requester_name?: string
+        }
+        Returns: Json
+      }
+      crm_data_request_update: {
+        Args: { p_detail: string; p_id: string; p_identity_verified: boolean }
+        Returns: undefined
+      }
+      crm_data_requests_list: {
+        Args: never
+        Returns: {
+          channel: string
+          code: string
+          contact_hidden: boolean
+          created_by_email: string
+          days_left: number
+          detail: string
+          due_date: string
+          id: string
+          identity_verified: boolean
+          kind: string
+          missing_holiday_years: number[]
+          person_id: string
+          person_name: string
+          previous_access_at: string
+          received_at: string
+          requester_email: string
+          requester_name: string
+          resolution_note: string
+          resolved_at: string
+          resolved_on_time: boolean
+          status: string
+        }[]
+      }
       crm_log: {
         Args: {
           p_action: string
@@ -651,6 +844,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      crm_retention_list: {
+        Args: never
+        Returns: {
+          created_at: string
+          expires_at: string
+          first_name: string
+          id: string
+          last_name: string
+          person_id: string
+          request_code: string
+          source: string
+        }[]
+      }
+      crm_retention_purge: { Args: { p_ids: string[] }; Returns: Json }
       crm_save_role: {
         Args: {
           p_description: string
@@ -660,6 +867,7 @@ export type Database = {
         }
         Returns: string
       }
+      crm_today: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {

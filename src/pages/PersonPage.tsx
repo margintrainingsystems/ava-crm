@@ -5,6 +5,15 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/StatusScreens'
 import { useToast } from '../components/Toast'
+import {
+  CONSENT_LABEL,
+  DATA_REQUEST_KIND_LABEL,
+  DATA_REQUEST_STATUS_LABEL,
+  currentConsents,
+  formatDay,
+  withdrawPublishConsent,
+  type Consent,
+} from '../lib/compliance'
 import { downloadFile, todayStamp } from '../lib/csv'
 import {
   addPersonNote,
@@ -15,13 +24,14 @@ import {
   parseTags,
   personName,
   updatePerson,
+  type PersonDataRequest,
   type PersonDetail,
   type PersonMessage,
   type PersonNote,
 } from '../lib/crm'
 import { errorMessage } from '../lib/errors'
 import { personDataPackage } from '../lib/exports'
-import { formatDateTime } from '../lib/format'
+import { formatDate, formatDateTime } from '../lib/format'
 import {
   emptyMessageText,
   isRequest,
@@ -45,26 +55,11 @@ export function buildTimeline(detail: Pick<PersonDetail, 'messages' | 'notes'>):
   return items.sort((a, b) => b.at.localeCompare(a.at))
 }
 
-// Resumen de consentimientos según el último formulario que los registró.
-export function consentSummary(messages: PersonMessage[]): { label: string; value: string }[] {
-  const latest = (pred: (m: PersonMessage) => boolean) =>
-    [...messages].sort((a, b) => b.created_at.localeCompare(a.created_at)).find(pred)
-  const withPrivacy = latest((m) => !isRequest(m.source))
-  const waitlist = latest((m) => m.source === 'suscripcion')
-  const out: { label: string; value: string }[] = []
-  if (withPrivacy) {
-    out.push({
-      label: 'Política de privacidad',
-      value: withPrivacy.privacy_consent
-        ? `Aceptó el ${formatDateTime(withPrivacy.created_at)}`
-        : 'Sin casilla: llegó antes de que existiera',
-    })
-  }
-  if (waitlist) {
-    out.push({ label: 'Mayor de 18', value: waitlist.adult_confirmed ? 'Lo declaró' : 'Sin declarar' })
-    out.push({ label: 'Publicar su nombre si gana', value: waitlist.publish_consent ? 'Lo autorizó' : 'No autorizado' })
-  }
-  return out
+// Cómo se ve cada constancia: si está vigente, desde cuándo y por qué vía.
+export function consentText(c: Consent): string {
+  const when = formatDate(c.recorded_at)
+  if (c.granted) return c.source === 'equipo' ? `Sí, registrado por el equipo el ${when}` : `Sí, desde el ${when} (${sourceLabel(c.source)})`
+  return `Retirado el ${when}`
 }
 
 // Cada persona monta su propia pantalla: al pasar de una ficha a otra no quedan datos viejos.
@@ -80,6 +75,7 @@ export function PersonPage({ id }: { id: string }) {
   const page = useAsync(() => fetchPerson(id))
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [withdrawing, setWithdrawing] = useState(false)
 
   if (page.loading && !page.data) return <Loading />
   if (page.error || !page.data) {
@@ -99,11 +95,22 @@ export function PersonPage({ id }: { id: string }) {
   const detail = page.data
   const p = detail.person
   const timeline = buildTimeline(detail)
-  const consents = consentSummary(detail.messages)
+  const consents = currentConsents(detail.consents)
 
   function downloadPackage() {
     downloadFile(`ava-datos-${todayStamp()}.json`, personDataPackage(detail), 'application/json;charset=utf-8')
     void logExport('exportar_persona', 'crm_people', { mensajes: detail.messages.length }, p.id)
+  }
+
+  async function confirmWithdraw() {
+    try {
+      await withdrawPublishConsent(p.id)
+      setWithdrawing(false)
+      toast.show('Retiraste la autorización para publicar su nombre.')
+      await page.reload()
+    } catch (e) {
+      toast.show(errorMessage(e, 'No pudimos retirar la autorización.'), 'error')
+    }
   }
 
   async function confirmDelete() {
@@ -226,13 +233,54 @@ export function PersonPage({ id }: { id: string }) {
               <dt>Última actividad</dt>
               <dd>{formatDateTime(p.last_activity_at)}</dd>
             </div>
-            {consents.map((c) => (
-              <div key={c.label}>
-                <dt>{c.label}</dt>
-                <dd>{c.value}</dd>
-              </div>
-            ))}
           </dl>
+
+          <section className="stack-sm" aria-labelledby="consentimientos">
+            <h3 id="consentimientos" className="h-sm">
+              Consentimientos
+            </h3>
+            {consents.length === 0 ? (
+              <p className="text-muted">
+                Sin constancias. Los pedidos de arrepentimiento y baja no llevan casilla: se guardan por obligación legal.
+              </p>
+            ) : (
+              <dl className="data-list data-list-stacked">
+                {consents.map((c) => (
+                  <div key={c.kind}>
+                    <dt>{CONSENT_LABEL[c.kind]}</dt>
+                    <dd>
+                      {consentText(c)}
+                      {c.kind === 'publicar_nombre' && c.granted && can(access, 'personas.editar') && (
+                        <>
+                          {' '}
+                          <button type="button" className="link-btn" onClick={() => setWithdrawing(true)}>
+                            Retirar
+                          </button>
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {detail.consents.length > consents.length && (
+              <details className="disclosure">
+                <summary>Ver todas las constancias ({detail.consents.length})</summary>
+                <ul className="plain-list">
+                  {detail.consents.map((c) => (
+                    <li key={c.id}>
+                      {CONSENT_LABEL[c.kind]}: {c.granted ? 'otorgado' : 'retirado'} el {formatDateTime(c.recorded_at)}
+                      {c.recorded_by_email ? ` por ${c.recorded_by_email}` : ` (${sourceLabel(c.source)})`}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+
+          {detail.data_requests && (
+            <PersonDataRequests personId={p.id} requests={detail.data_requests} />
+          )}
 
           {can(access, 'personas.borrar') && (
             <div className="panel panel-danger stack-sm">
@@ -248,6 +296,19 @@ export function PersonPage({ id }: { id: string }) {
           )}
         </aside>
       </div>
+
+      <ConfirmDialog
+        open={withdrawing}
+        title="Retirar la autorización"
+        confirmLabel="Retirar autorización"
+        onConfirm={confirmWithdraw}
+        onClose={() => setWithdrawing(false)}
+      >
+        <p>
+          <strong>{personName(p)}</strong> deja de autorizar que publiquemos su nombre si gana una beca. Queda una constancia
+          con la fecha y quién lo registró.
+        </p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={deleting}
@@ -289,6 +350,7 @@ function TimelineMessage({ m }: { m: PersonMessage }) {
         </p>
       )}
       <p className="timeline-body">{m.message || emptyMessageText(m.source)}</p>
+      {m.expires_at && <p className="timeline-meta text-muted">Se guarda hasta el {formatDate(m.expires_at)}</p>}
       <p>
         <Link className="text-link" to={`/mensajes?mensaje=${m.id}`}>
           Abrir en Mensajes
@@ -436,5 +498,35 @@ function PersonForm({ detail, onCancel, onSaved }: { detail: PersonDetail; onCan
         </button>
       </div>
     </form>
+  )
+}
+
+function PersonDataRequests({ personId, requests }: { personId: string; requests: PersonDataRequest[] }) {
+  return (
+    <section className="stack-sm" aria-labelledby="pedidos-datos">
+      <h3 id="pedidos-datos" className="h-sm">
+        Pedidos de datos
+      </h3>
+      {requests.length === 0 ? (
+        <p className="text-muted">No pidió acceso, corrección ni borrado de sus datos.</p>
+      ) : (
+        <ul className="plain-list">
+          {requests.map((r) => (
+            <li key={r.id}>
+              <Link className="text-link" to={`/pedidos-de-datos?pedido=${r.id}`}>
+                {r.code}
+              </Link>{' '}
+              · {DATA_REQUEST_KIND_LABEL[r.kind]} · {DATA_REQUEST_STATUS_LABEL[r.status]}
+              {r.status === 'pendiente' ? ` · vence el ${formatDay(r.due_date)}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p>
+        <Link className="text-link" to={`/pedidos-de-datos?persona=${personId}`}>
+          Registrar un pedido
+        </Link>
+      </p>
+    </section>
   )
 }

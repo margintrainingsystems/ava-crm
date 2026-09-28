@@ -1,4 +1,5 @@
 import { buildCsv } from './csv'
+import { CONSENT_LABEL } from './compliance'
 import type { PersonDetail, PersonSummary } from './crm'
 import { formatDateTime } from './format'
 import { SOURCE_LABEL, isRequest, sourceLabel, statusLabel, type Message, type Source } from './messages'
@@ -72,6 +73,12 @@ export function personDataPackage(detail: PersonDetail, generatedAt: Date = new 
         acepto_privacidad: isRequest(m.source) ? null : m.privacy_consent,
         declaro_ser_mayor: m.source === 'suscripcion' ? m.adult_confirmed : null,
         autorizo_publicar_su_nombre: m.source === 'suscripcion' ? m.publish_consent : null,
+      })),
+      constancias_de_consentimiento: detail.consents.map((c) => ({
+        fecha: c.recorded_at,
+        tipo: CONSENT_LABEL[c.kind] ?? c.kind,
+        otorgado: c.granted,
+        origen: c.source,
       })),
       notas_internas: detail.notes.map((n) => ({ fecha: n.created_at, texto: n.body })),
     },

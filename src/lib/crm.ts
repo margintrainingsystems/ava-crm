@@ -1,3 +1,4 @@
+import type { Consent, DataRequestKind, DataRequestStatus } from './compliance'
 import type { Json } from './database.types'
 import type { Message, Status } from './messages'
 import { supabase } from './supabase'
@@ -71,6 +72,18 @@ export type PersonMessage = {
   privacy_consent: boolean
   publish_consent: boolean
   adult_confirmed: boolean
+  // Cuándo vence la guarda según la Política de privacidad. Null: lista de espera, sin fecha todavía.
+  expires_at: string | null
+}
+
+export type PersonDataRequest = {
+  id: string
+  code: string
+  kind: DataRequestKind
+  status: DataRequestStatus
+  received_at: string
+  due_date: string
+  resolved_at: string | null
 }
 
 export type PersonNote = { id: string; body: string; author_email: string | null; created_at: string }
@@ -80,6 +93,9 @@ export type PersonDetail = {
   messages: PersonMessage[]
   hidden_messages: number
   notes: PersonNote[]
+  consents: Consent[]
+  // Null cuando el rol no gestiona pedidos de datos.
+  data_requests: PersonDataRequest[] | null
 }
 
 export async function fetchPerson(id: string): Promise<PersonDetail> {

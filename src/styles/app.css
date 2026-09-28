@@ -658,3 +658,129 @@
 .cell-link:hover {
   color: var(--green);
 }
+
+/* --- Hoy y plazos --- */
+.panel-warning {
+  border-color: rgba(224, 164, 88, 0.45);
+}
+.today-list {
+  list-style: none;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.today-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+.today-item + .today-item {
+  border-top: 1px solid var(--line-soft);
+}
+.today-link {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.today-link:hover .today-title,
+.today-link:focus-visible .today-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.today-title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.today-sub {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+.due {
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.message-meta .due {
+  white-space: normal;
+}
+.due-ok {
+  color: var(--green);
+}
+.due-soon {
+  color: var(--accent-3);
+}
+.due-late {
+  color: var(--danger);
+}
+
+/* --- Elementos de formulario y listas simples --- */
+.h-sm {
+  font-size: 0.98rem;
+}
+.field .choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+.field .choice strong {
+  font-weight: 700;
+}
+fieldset.field legend {
+  margin-bottom: 4px;
+}
+.field .choice input {
+  accent-color: var(--green);
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin-top: 2px;
+  flex: none;
+}
+fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--green);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.plain-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+.disclosure summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.disclosure[open] summary {
+  margin-bottom: 8px;
+}
+.row-check {
+  accent-color: var(--green);
+  width: 18px;
+  height: 18px;
+}

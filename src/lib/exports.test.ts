@@ -36,9 +36,16 @@ describe('exportaciones', () => {
             id: 'p1', first_name: 'Ana', last_name: 'Pérez', email: 'ana@example.com', phone: null,
             contact_hidden: false, country: null, tags: [], created_at: m.created_at, last_activity_at: m.created_at,
           },
-          messages: [{ ...m, id: 'm1' }],
+          messages: [{ ...m, id: 'm1', expires_at: null }],
           hidden_messages: 0,
           notes: [{ id: 'n1', body: 'Llamé', author_email: 'x@example.com', created_at: m.created_at }],
+          consents: [
+            {
+              id: 'c1', kind: 'publicar_nombre', granted: false, source: 'equipo',
+              recorded_at: m.created_at, recorded_by_email: 'x@example.com',
+            },
+          ],
+          data_requests: null,
         },
         new Date('2026-09-28T15:00:00Z'),
       ),
@@ -47,6 +54,9 @@ describe('exportaciones', () => {
     expect(json.mensajes[0].tipo).toBe('Lista de espera')
     expect(json.mensajes[0].declaro_ser_mayor).toBe(true)
     expect(json.notas_internas[0]).toEqual({ fecha: m.created_at, texto: 'Llamé' })
+    expect(json.constancias_de_consentimiento[0]).toEqual({
+      fecha: m.created_at, tipo: 'Publicar su nombre si gana una beca', otorgado: false, origen: 'equipo',
+    })
     // No incluye quién escribió la nota: es un dato del equipo, no de la persona.
     expect(JSON.stringify(json)).not.toContain('x@example.com')
   })

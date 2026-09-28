@@ -19,9 +19,16 @@ const BY_CODE: Record<string, string> = {
   user_banned: 'Esta cuenta está bloqueada.',
 }
 
+// Las funciones del CRM explican en español por qué rechazan un dato (por ejemplo,
+// "El pedido ya está cerrado"). Los rechazos propios de Postgres vienen en inglés.
+const OWN_MESSAGE_CODES = new Set(['23514', '22023'])
+
 export function errorMessage(error: unknown, fallback = 'Algo salió mal. Probá de nuevo en unos minutos.'): string {
   const e = error as ErrorLike
   if (!e) return fallback
+  if (e.code && OWN_MESSAGE_CODES.has(e.code) && e.message && !/violates|constraint|invalid input/i.test(e.message)) {
+    return e.message.endsWith('.') ? e.message : `${e.message}.`
+  }
   if (e.code && BY_CODE[e.code]) return BY_CODE[e.code] as string
   if (e.message && /Failed to fetch|NetworkError|Load failed/i.test(e.message)) {
     return 'No hay conexión con el servidor. Revisá tu internet y probá de nuevo.'

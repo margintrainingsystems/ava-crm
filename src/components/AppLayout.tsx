@@ -17,9 +17,11 @@ type NavItem = { to: string; label: string; end?: boolean } & (
 export const MESSAGE_PERMISSIONS: PermissionKey[] = ['mensajes.ver', 'pedidos.gestionar']
 
 const NAV: NavItem[] = [
-  { to: '/', label: 'Inicio', end: true, always: true },
+  { to: '/', label: 'Hoy', end: true, always: true },
   { to: '/mensajes', label: 'Mensajes', anyOf: MESSAGE_PERMISSIONS },
   { to: '/personas', label: 'Personas', permission: 'personas.ver' },
+  { to: '/pedidos-de-datos', label: 'Pedidos de datos', permission: 'derechos.gestionar' },
+  { to: '/retencion', label: 'Retención', permission: 'personas.borrar' },
 ]
 
 export function visibleNav(access: Access): NavItem[] {

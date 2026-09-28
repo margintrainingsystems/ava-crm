@@ -2,19 +2,35 @@ import { Link } from 'react-router-dom'
 import { useMember } from '../auth/context'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/StatusScreens'
-import { firstName } from '../lib/format'
-import { can, groupPermissions } from '../lib/permissions'
-import { fetchPermissions } from '../lib/queries'
+import {
+  DATA_REQUEST_KIND_LABEL,
+  dueText,
+  dueTone,
+  fetchToday,
+  formatDay,
+  hoursLeftText,
+  isPast,
+  yearsText,
+  type Today,
+} from '../lib/compliance'
 import { NUCLEO_URL } from '../lib/config'
+import { firstName, formatDateTime, plural } from '../lib/format'
+import { sourceLabel } from '../lib/messages'
+import { groupPermissions } from '../lib/permissions'
+import { fetchPermissions } from '../lib/queries'
 import { useAsync } from '../lib/useAsync'
-import { useUnreadCount } from '../lib/useUnreadCount'
-import { MESSAGE_PERMISSIONS } from '../components/AppLayout'
+
+// Hay algo para hacer hoy en alguna de las secciones que el rol puede ver.
+export function hasPending(t: Today): boolean {
+  return Boolean(
+    t.requests?.length || t.data_requests?.length || t.unread_count || t.expired_count || t.missing_holiday_years?.length,
+  )
+}
 
 export function HomePage() {
   const { member, access } = useMember()
+  const today = useAsync(fetchToday)
   const permissions = useAsync(fetchPermissions)
-  const seesMessages = MESSAGE_PERMISSIONS.some((p) => can(access, p))
-  const unread = useUnreadCount(seesMessages)
 
   return (
     <section className="stack-lg">
@@ -23,30 +39,20 @@ export function HomePage() {
           Hola, {firstName(member.displayName, member.email)}
         </h1>
         <p className="text-muted">
+          {today.data ? `Hoy es ${formatDay(today.data.today)}. ` : ''}
           {member.isOwner
             ? 'Sos la propietaria del CRM y tenés todos los permisos.'
             : `Tu rol es ${member.roleName ?? 'sin nombre'}.`}
         </p>
       </header>
 
-      {seesMessages && (
-        <p className="panel">
-          {unread === 0 ? (
-            'No hay mensajes sin leer.'
-          ) : (
-            <>
-              {unread === 1 ? 'Hay 1 mensaje sin leer. ' : `Hay ${unread} mensajes sin leer. `}
-              <Link className="text-link" to="/mensajes">
-                Ir a Mensajes
-              </Link>
-            </>
-          )}
-        </p>
-      )}
+      {today.loading && !today.data && <Loading />}
+      {Boolean(today.error) && <LoadError error={today.error} onRetry={today.reload} />}
+      {today.data && <TodayPanels t={today.data} isOwner={member.isOwner} />}
 
       {member.isOwner && (
         <p className="panel">
-          El equipo, los roles y la auditoría se administran en{' '}
+          El equipo, los roles, la auditoría y los feriados se administran en{' '}
           <a className="text-link" href={`${NUCLEO_URL}/equipo.html`} target="_blank" rel="noopener noreferrer">
             Núcleo<span className="visually-hidden"> (se abre en otra pestaña)</span>
           </a>
@@ -67,6 +73,138 @@ export function HomePage() {
         )}
       </section>
     </section>
+  )
+}
+
+function TodayPanels({ t, isOwner }: { t: Today; isOwner: boolean }) {
+  const missing = t.missing_holiday_years ?? []
+  return (
+    <div className="stack-md">
+      {missing.length > 0 && (
+        <div className="panel panel-warning" role="note">
+          <p>
+            <strong>Faltan los feriados de {yearsText(missing)}.</strong> Sin ellos, los plazos en días hábiles pueden
+            quedar más cortos de lo que dice la ley.{' '}
+            {isOwner ? (
+              <a className="text-link" href={`${NUCLEO_URL}/feriados.html`} target="_blank" rel="noopener noreferrer">
+                Cargalos en Núcleo<span className="visually-hidden"> (se abre en otra pestaña)</span>
+              </a>
+            ) : (
+              'Avisale a la propietaria para que los cargue.'
+            )}
+          </p>
+        </div>
+      )}
+
+      {t.requests && (
+        <section className="stack-sm" aria-labelledby="hoy-pedidos">
+          <h2 id="hoy-pedidos" className="h-md">
+            Arrepentimiento y baja por confirmar
+          </h2>
+          {t.requests.length === 0 ? (
+            <p className="text-muted">No hay pedidos sin confirmar.</p>
+          ) : (
+            <ul className="today-list">
+              {t.requests.map((r) => {
+                const late = isPast(r.deadline)
+                return (
+                  <li key={r.id} className="today-item">
+                    <Link className="today-link" to={`/mensajes?mensaje=${r.id}`}>
+                      <span className="today-title">
+                        {sourceLabel(r.source)} · {r.request_code ?? 'sin código'}
+                      </span>
+                      <span className="today-sub">
+                        {r.name ?? 'Sin nombre'} · llegó el {formatDateTime(r.created_at)}
+                      </span>
+                    </Link>
+                    <span className={late ? 'due due-late' : 'due due-soon'}>{hoursLeftText(r.deadline)}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {t.data_requests && (
+        <section className="stack-sm" aria-labelledby="hoy-datos">
+          <h2 id="hoy-datos" className="h-md">
+            Pedidos de datos pendientes
+          </h2>
+          {t.data_requests.length === 0 ? (
+            <p className="text-muted">
+              No hay pedidos de acceso, corrección o borrado pendientes.{' '}
+              <Link className="text-link" to="/pedidos-de-datos">
+                Registrar uno
+              </Link>
+            </p>
+          ) : (
+            <ul className="today-list">
+              {t.data_requests.map((r) => (
+                <li key={r.id} className="today-item">
+                  <Link className="today-link" to={`/pedidos-de-datos?pedido=${r.id}`}>
+                    <span className="today-title">
+                      {DATA_REQUEST_KIND_LABEL[r.kind]} · {r.code}
+                    </span>
+                    <span className="today-sub">
+                      {r.name ?? 'Sin nombre'} · vence el {formatDay(r.due_date)}
+                      {r.identity_verified ? '' : ' · identidad sin verificar'}
+                    </span>
+                  </Link>
+                  <span className={`due due-${dueTone(r.days_left)}`}>{dueText(r.days_left)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {t.unread && (
+        <section className="stack-sm" aria-labelledby="hoy-mensajes">
+          <h2 id="hoy-mensajes" className="h-md">
+            Mensajes sin leer
+          </h2>
+          {t.unread.length === 0 ? (
+            <p className="text-muted">No hay mensajes sin leer.</p>
+          ) : (
+            <>
+              <ul className="today-list">
+                {t.unread.map((m) => (
+                  <li key={m.id} className="today-item">
+                    <Link className="today-link" to={`/mensajes?mensaje=${m.id}`}>
+                      <span className="today-title">{m.name ?? 'Sin nombre'}</span>
+                      <span className="today-sub">
+                        {sourceLabel(m.source)}
+                        {m.motivo ? ` · ${m.motivo}` : ''} · {formatDateTime(m.created_at)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {(t.unread_count ?? 0) > t.unread.length && (
+                <p>
+                  <Link className="text-link" to="/mensajes">
+                    Ver los {t.unread_count} mensajes sin leer
+                  </Link>
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {Boolean(t.expired_count) && (
+        <p className="panel">
+          {plural(t.expired_count ?? 0, 'formulario cumplió', 'formularios cumplieron')} el plazo de guarda de la Política
+          de privacidad.{' '}
+          <Link className="text-link" to="/retencion">
+            Revisalos en Retención
+          </Link>
+        </p>
+      )}
+
+      {!hasPending(t) && <p className="panel">Todo al día: no hay nada pendiente en tus secciones.</p>}
+    </div>
   )
 }
 

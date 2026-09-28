@@ -4,14 +4,18 @@ Herramienta de trabajo diario que la dueña de AVA comparte con su equipo: perso
 
 **Núcleo** (`https://ava-nucleo.netlify.app`, repo `ava-nucleo`) es el panel privado de la dueña: desde ahí administra el sitio y también el CRM (equipo, roles y permisos, auditoría y configuración). Los dos usan el mismo proyecto de Supabase.
 
-Hoy el CRM tiene las **fases 0 y 1**: acceso con permisos por rol, personas y mensajes. Las demás secciones se suman por fases (ver "Hoja de ruta").
+Hoy el CRM tiene las **fases 0, 1 y 2**: acceso con permisos por rol, personas, mensajes, plazos legales, pedidos de datos, consentimientos y retención. Las demás secciones se suman por fases (ver "Hoja de ruta").
 
 ## Qué podés hacer hoy
 
+- **Hoy**: la pantalla de inicio junta lo que vence según tu rol: pedidos de arrepentimiento y baja por confirmar (24 horas), pedidos de datos pendientes con su plazo, mensajes sin leer y formularios con el plazo de guarda cumplido. Avisa si faltan los feriados del año.
 - **Entrar** con email y contraseña. Solo entran las cuentas que figuran en el equipo (`crm_members`). Una cuenta de estudiante o de otra persona queda afuera, aunque use el mismo Supabase.
 - **Ver solo lo que permite tu rol**: el menú, las pantallas y los datos dependen de los permisos que la dueña le dio a tu rol en Núcleo. Con "Ver email y teléfono" apagado, esos datos llegan vacíos desde la base.
 - **Mensajes**: todo lo que hacía Núcleo → Mensajes. Pestañas por tipo con contador, archivados, notas internas con aviso si quedan sin guardar, responder por email o WhatsApp, plazo de 24 horas de los pedidos, email de confirmación ya redactado, marcar como confirmado y descargar CSV. El menú muestra cuántos mensajes hay sin leer.
 - **Personas**: una ficha por email con todo lo que llegó desde el sitio, notas internas, etiquetas, consentimientos, historial, "Descargar sus datos" (para responder un pedido de acceso) y borrado completo.
+- **Pedidos de datos** (permiso "Gestionar pedidos de datos"): registrar pedidos de acceso, rectificación o supresión (Ley 25.326) que llegan por email o WhatsApp. La base calcula el vencimiento: 10 días corridos para el acceso y 5 días hábiles para el resto, salteando fines de semana y los feriados cargados en Núcleo. Cada pedido tiene un código `DAT-XXXXXX`, marca de identidad verificada, nota de cierre y aviso si la persona pidió acceso hace menos de seis meses. Si se borra a la persona, el pedido queda como constancia.
+- **Consentimientos**: cada casilla que marca alguien en el sitio (privacidad, mayor de 18, publicar su nombre) queda como constancia que no se edita. La ficha muestra el estado actual, el historial y permite registrar que la persona retiró la autorización para publicar su nombre.
+- **Retención** (permiso "Borrar datos personales"): lista los formularios que cumplieron el plazo de la Política de privacidad (contacto: 2 años desde el último intercambio; arrepentimiento y baja: 3 años). Nada se borra solo: se eligen y se confirma. Si una persona queda sin formularios, se borra su ficha.
 - **Cierre de sesión automático** después de una hora sin actividad.
 - La dueña ve además el link **Administrar en Núcleo**.
 
@@ -22,6 +26,7 @@ Hoy el CRM tiene las **fases 0 y 1**: acceso con permisos por rol, personas y me
 | CRM → Equipo | Invitar personas, cambiar su rol, reenviar invitaciones, desactivar, reactivar y quitar |
 | CRM → Roles y permisos | Crear roles y elegir sus permisos de la lista fija. Los sensibles van marcados |
 | CRM → Auditoría | Quién abrió fichas, descargó datos o cambió algo, y cuándo. Nadie la puede editar ni borrar |
+| CRM → Feriados | Los días que no cuentan como hábiles para los plazos. Se cargan pegando la lista oficial; al cargar o borrar uno, los plazos pendientes se recalculan |
 | (fase 4) Configuración | Cupo, plantillas de email y plazos. Se puede delegar con el permiso "Editar la configuración" |
 
 La base aplica las mismas reglas: equipo, roles y auditoría solo los lee y cambia la propietaria del CRM, venga el pedido de Núcleo o de cualquier otro lado.
@@ -110,6 +115,9 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_audit_log` | Registro de cambios y accesos. Solo lo lee la propietaria (desde Núcleo); nadie lo edita ni lo borra desde la API |
 | `crm_people` | Una fila por persona, identificada por su email en minúsculas |
 | `crm_person_notes` | Notas internas sobre cada persona |
+| `crm_holidays` | Feriados. Los lee el equipo; solo la propietaria los carga (desde Núcleo) |
+| `crm_data_requests` | Pedidos de acceso, rectificación y supresión. El vencimiento lo calcula un trigger |
+| `crm_consents` | Constancias de consentimiento. Se crean solas con cada formulario y no se editan |
 | `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
 
 ### Cómo se protegen las personas y los mensajes
@@ -129,15 +137,21 @@ Funciones:
 - `crm_save_role(...)`: guarda un rol y sus permisos en una sola operación, con los permisos de quien la llama.
 - `crm_log(...)`: registra un evento en la auditoría (por ejemplo, una exportación). Revisa que quien la llama sea del equipo.
 - `crm_admin_find_user(...)` y `crm_admin_users_status(...)`: solo para la Edge Function.
+- `crm_private.crm_add_business_days(fecha, n)`, `crm_next_business_day(fecha)` y `crm_missing_holiday_years(desde, hasta)`: días hábiles de Argentina. Cuentan desde el día siguiente y saltean sábados, domingos y `crm_holidays`.
+- `crm_today()`: arma la pantalla Hoy con las secciones que permite el rol.
+- `crm_data_requests_list()`, `crm_data_request_create(...)`, `crm_data_request_update(...)` y `crm_data_request_close(...)`: pedidos de datos.
+- `crm_consent_withdraw(persona, 'publicar_nombre')`: registra el retiro de esa autorización.
+- `crm_retention_list()` y `crm_retention_purge(ids)`: formularios vencidos. El borrado vuelve a revisar el vencimiento antes de borrar.
 
 Protecciones de la fila de la propietaria: nadie la puede modificar ni borrar desde el CRM, y nadie puede crear otra propietaria.
 
 ### Probar los permisos
 
-Dos scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
+Tres scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
 
 - `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
 - `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
+- `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (44 reglas).
 
 Terminan con un error a propósito para que Postgres revierta todo. Correlos en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
 
@@ -175,7 +189,7 @@ Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
 |---|---|
 | 0 | Acceso, equipo, roles, permisos y auditoría (la administración quedó en Núcleo). **Hecha** |
 | 1 | Personas y Mensajes: todo lo que hacía Núcleo → Mensajes, con una ficha por persona. **Hecha** |
-| 2 | Bandeja "Hoy", pedidos legales, días hábiles de Argentina, consentimientos y retención de datos |
+| 2 | Bandeja "Hoy", pedidos de datos, días hábiles de Argentina, consentimientos y retención de datos. **Hecha** |
 | 3 | Emails automáticos con Resend, empezando por la confirmación de pedidos en 24 horas |
 | 4 | Pagos con Mercado Pago y PayPal, suscripciones, cupo y sorteo de becas |
 | 5 | Campus propio (repo aparte) y certificados con verificación por QR |

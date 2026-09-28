@@ -13,3 +13,4 @@ Leé el README antes de cambiar algo. Resumen de lo que no se negocia:
 - Personas y mensajes se leen solo con las funciones `crm_*` (security definer que revisan permisos y ocultan contacto). No agregues políticas que den acceso directo a `leads` o `crm_people`.
 - Diseño: tokens en `src/styles/tokens.css`. Verde como color principal; acentos solo en detalles. Sin glassmorphism, sin cajas de métricas en grupos de 3 o 4, sin etiquetas decorativas sobre los títulos, sin métricas inventadas.
 - Si falta una definición (cupo, plataforma del Campus, textos legales), preguntale a la dueña. No la completes por tu cuenta.
+- Los plazos legales se calculan en la base (`crm_private.crm_add_business_days`, triggers de `crm_data_requests`). Los feriados los carga la dueña desde Núcleo con la lista oficial: nunca los cargues de memoria.
