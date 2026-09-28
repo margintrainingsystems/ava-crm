@@ -165,7 +165,7 @@ Cinco scripts en `supabase/tests/` simulan a la propietaria, a personas del equi
 
 - `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
 - `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
-- `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (44 reglas).
+- `fase2_plazos_consentimientos_retencion.sql`: feriados, días hábiles, pedidos de datos, constancias de consentimiento, retención y Hoy (45 reglas).
 - `fase3_emails.sql`: cola, confirmación automática, cancelación al confirmar a mano, reintentos, plantillas, remitente y permisos (40 reglas). No manda emails: simula a la Edge Function.
 - `fase4_suscripciones_pagos_sorteo.sql`: lectura de dolarhoy.com, cotización a mano, cupo, altas, renovaciones, bajas, devoluciones, reporte por moneda, avisos de renovación, sorteo completo y permisos (50 reglas). No lee dolarhoy.com ni manda emails.
 

@@ -61,12 +61,14 @@ begin
 
   perform set_config('request.jwt.claims', json_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
-  insert into public.crm_holidays (day, name) values ('2040-03-06', 'Feriado de prueba');
+  insert into public.crm_holidays (day, name) values ('2040-03-06', 'Feriado de prueba'), ('2041-01-01', 'Año Nuevo de prueba');
   execute 'reset role';
 
   if crm_private.crm_add_business_days('2040-03-02', 5) = '2040-03-12' then r := r || 'habiles_con_feriado=ok '; else r := r || 'habiles_con_feriado=MAL '; fallas := fallas + 1; end if;
   if crm_private.crm_next_business_day('2040-03-03') = '2040-03-05' and crm_private.crm_next_business_day('2040-03-05') = '2040-03-05' then r := r || 'siguiente_habil=ok '; else r := r || 'siguiente_habil=MAL '; fallas := fallas + 1; end if;
   if crm_private.crm_missing_holiday_years('2040-03-02', '2040-12-31') = '{}'::int[] then r := r || 'anio_con_feriados=ok '; else r := r || 'anio_con_feriados=MAL '; fallas := fallas + 1; end if;
+  -- La lista oficial trae el 1 de enero del año siguiente: eso solo no completa el año.
+  if crm_private.crm_missing_holiday_years('2040-03-02', '2041-06-01') = array[2041] then r := r || 'solo_1_de_enero_no_alcanza=ok '; else r := r || 'solo_1_de_enero_no_alcanza=MAL '; fallas := fallas + 1; end if;
   select count(*) into v_n from public.crm_audit_log where entity = 'crm_holidays' and action = 'insert' and actor_id = v_owner and detail->'despues'->>'day' = '2040-03-06';
   if v_n = 1 then r := r || 'feriado_auditado=ok '; else r := r || 'feriado_auditado=MAL '; fallas := fallas + 1; end if;
 
