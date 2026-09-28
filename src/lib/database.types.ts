@@ -109,6 +109,48 @@ export type Database = {
           },
         ]
       }
+      crm_people: {
+        Row: {
+          country: string | null
+          created_at: string
+          email: string | null
+          email_normalized: string | null
+          first_name: string | null
+          id: string
+          last_activity_at: string
+          last_name: string | null
+          phone: string | null
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          email_normalized?: string | null
+          first_name?: string | null
+          id?: string
+          last_activity_at?: string
+          last_name?: string | null
+          phone?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          email_normalized?: string | null
+          first_name?: string | null
+          id?: string
+          last_activity_at?: string
+          last_name?: string | null
+          phone?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_permissions: {
         Row: {
           area: string
@@ -132,6 +174,41 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      crm_person_notes: {
+        Row: {
+          author_email: string | null
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          person_id: string
+        }
+        Insert: {
+          author_email?: string | null
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          person_id: string
+        }
+        Update: {
+          author_email?: string | null
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          person_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_person_notes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "crm_people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_role_permissions: {
         Row: {
@@ -248,6 +325,7 @@ export type Database = {
           motivo: string | null
           name: string | null
           notes: string | null
+          person_id: string | null
           phone: string | null
           privacy_consent: boolean
           publish_consent: boolean
@@ -267,6 +345,7 @@ export type Database = {
           motivo?: string | null
           name?: string | null
           notes?: string | null
+          person_id?: string | null
           phone?: string | null
           privacy_consent?: boolean
           publish_consent?: boolean
@@ -286,6 +365,7 @@ export type Database = {
           motivo?: string | null
           name?: string | null
           notes?: string | null
+          person_id?: string | null
           phone?: string | null
           privacy_consent?: boolean
           publish_consent?: boolean
@@ -293,7 +373,15 @@ export type Database = {
           source?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "crm_people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       masters: {
         Row: {
@@ -488,6 +576,78 @@ export type Database = {
           p_detail?: Json
           p_entity: string
           p_entity_id?: string
+        }
+        Returns: undefined
+      }
+      crm_message_confirm: { Args: { p_id: string }; Returns: string }
+      crm_message_delete: { Args: { p_id: string }; Returns: undefined }
+      crm_message_update: {
+        Args: {
+          p_id: string
+          p_notes?: string
+          p_set_notes?: boolean
+          p_status?: string
+        }
+        Returns: undefined
+      }
+      crm_messages_list: {
+        Args: never
+        Returns: {
+          adult_confirmed: boolean
+          can_handle: boolean
+          confirmed_at: string
+          contact_hidden: boolean
+          country: string
+          created_at: string
+          email: string
+          id: string
+          last_name: string
+          message: string
+          motivo: string
+          name: string
+          notes: string
+          person_id: string
+          phone: string
+          privacy_consent: boolean
+          publish_consent: boolean
+          request_code: string
+          source: string
+          status: string
+        }[]
+      }
+      crm_messages_unread_count: { Args: never; Returns: number }
+      crm_people_list: {
+        Args: never
+        Returns: {
+          contact_hidden: boolean
+          country: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_activity_at: string
+          last_name: string
+          message_count: number
+          phone: string
+          sources: string[]
+          tags: string[]
+        }[]
+      }
+      crm_person_add_note: {
+        Args: { p_body: string; p_id: string }
+        Returns: string
+      }
+      crm_person_delete: { Args: { p_id: string }; Returns: undefined }
+      crm_person_detail: { Args: { p_id: string }; Returns: Json }
+      crm_person_update: {
+        Args: {
+          p_country: string
+          p_email?: string
+          p_first_name: string
+          p_id: string
+          p_last_name: string
+          p_phone?: string
+          p_tags: string[]
         }
         Returns: undefined
       }

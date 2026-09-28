@@ -1,0 +1,440 @@
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMember } from '../auth/context'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { LoadError } from '../components/LoadError'
+import { Loading } from '../components/StatusScreens'
+import { useToast } from '../components/Toast'
+import { downloadFile, todayStamp } from '../lib/csv'
+import {
+  addPersonNote,
+  deletePerson,
+  fetchPerson,
+  logExport,
+  notifyMessagesChanged,
+  parseTags,
+  personName,
+  updatePerson,
+  type PersonDetail,
+  type PersonMessage,
+  type PersonNote,
+} from '../lib/crm'
+import { errorMessage } from '../lib/errors'
+import { personDataPackage } from '../lib/exports'
+import { formatDateTime } from '../lib/format'
+import {
+  emptyMessageText,
+  isRequest,
+  motivoLabel,
+  requestState,
+  requestStateText,
+  sourceLabel,
+  statusLabel,
+} from '../lib/messages'
+import { can } from '../lib/permissions'
+import { useAsync } from '../lib/useAsync'
+import { isValidEmail } from '../lib/validation'
+
+type TimelineItem = { kind: 'mensaje'; at: string; message: PersonMessage } | { kind: 'nota'; at: string; note: PersonNote }
+
+export function buildTimeline(detail: Pick<PersonDetail, 'messages' | 'notes'>): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...detail.messages.map((message) => ({ kind: 'mensaje' as const, at: message.created_at, message })),
+    ...detail.notes.map((note) => ({ kind: 'nota' as const, at: note.created_at, note })),
+  ]
+  return items.sort((a, b) => b.at.localeCompare(a.at))
+}
+
+// Resumen de consentimientos según el último formulario que los registró.
+export function consentSummary(messages: PersonMessage[]): { label: string; value: string }[] {
+  const latest = (pred: (m: PersonMessage) => boolean) =>
+    [...messages].sort((a, b) => b.created_at.localeCompare(a.created_at)).find(pred)
+  const withPrivacy = latest((m) => !isRequest(m.source))
+  const waitlist = latest((m) => m.source === 'suscripcion')
+  const out: { label: string; value: string }[] = []
+  if (withPrivacy) {
+    out.push({
+      label: 'Política de privacidad',
+      value: withPrivacy.privacy_consent
+        ? `Aceptó el ${formatDateTime(withPrivacy.created_at)}`
+        : 'Sin casilla: llegó antes de que existiera',
+    })
+  }
+  if (waitlist) {
+    out.push({ label: 'Mayor de 18', value: waitlist.adult_confirmed ? 'Lo declaró' : 'Sin declarar' })
+    out.push({ label: 'Publicar su nombre si gana', value: waitlist.publish_consent ? 'Lo autorizó' : 'No autorizado' })
+  }
+  return out
+}
+
+// Cada persona monta su propia pantalla: al pasar de una ficha a otra no quedan datos viejos.
+export function PersonRoute() {
+  const { id = '' } = useParams()
+  return <PersonPage key={id} id={id} />
+}
+
+export function PersonPage({ id }: { id: string }) {
+  const { access } = useMember()
+  const toast = useToast()
+  const navigate = useNavigate()
+  const page = useAsync(() => fetchPerson(id))
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  if (page.loading && !page.data) return <Loading />
+  if (page.error || !page.data) {
+    return (
+      <section className="stack-md">
+        <h1 className="h-lg" tabIndex={-1} data-page-title>
+          No pudimos abrir la ficha
+        </h1>
+        <LoadError error={page.error} onRetry={page.reload} />
+        <Link className="text-link" to="/personas">
+          Volver a Personas
+        </Link>
+      </section>
+    )
+  }
+
+  const detail = page.data
+  const p = detail.person
+  const timeline = buildTimeline(detail)
+  const consents = consentSummary(detail.messages)
+
+  function downloadPackage() {
+    downloadFile(`ava-datos-${todayStamp()}.json`, personDataPackage(detail), 'application/json;charset=utf-8')
+    void logExport('exportar_persona', 'crm_people', { mensajes: detail.messages.length }, p.id)
+  }
+
+  async function confirmDelete() {
+    try {
+      await deletePerson(p.id)
+      notifyMessagesChanged()
+      toast.show('Borraste a la persona y todos sus mensajes.')
+      navigate('/personas', { replace: true })
+    } catch (e) {
+      toast.show(errorMessage(e, 'No pudimos borrar a la persona.'), 'error')
+    }
+  }
+
+  return (
+    <section className="stack-lg">
+      <p>
+        <Link className="text-link" to="/personas">
+          ← Personas
+        </Link>
+      </p>
+
+      <header className="page-header">
+        <div className="stack-sm">
+          <h1 className="h-xl" tabIndex={-1} data-page-title>
+            {personName(p)}
+          </h1>
+          <p className="text-muted">
+            {p.contact_hidden
+              ? 'Contacto oculto: tu rol no incluye ver email y teléfono.'
+              : [p.email, p.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
+          </p>
+          {p.tags.length > 0 && (
+            <p className="tag-list">
+              {p.tags.map((t) => (
+                <span key={t} className="tag">
+                  {t}
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
+        <div className="form-actions">
+          {can(access, 'personas.editar') && !editing && (
+            <button type="button" className="btn btn-outline" onClick={() => setEditing(true)}>
+              Editar datos
+            </button>
+          )}
+          {can(access, 'personas.exportar') && (
+            <button type="button" className="btn btn-ghost" onClick={downloadPackage}>
+              Descargar sus datos
+            </button>
+          )}
+        </div>
+      </header>
+
+      {editing && (
+        <PersonForm
+          detail={detail}
+          onCancel={() => setEditing(false)}
+          onSaved={async () => {
+            setEditing(false)
+            toast.show('Guardaste los cambios.')
+            await page.reload()
+          }}
+        />
+      )}
+
+      <div className="person-grid">
+        <section className="stack-md" aria-labelledby="historial">
+          <h2 id="historial" className="h-md">
+            Historial
+          </h2>
+          {can(access, 'personas.editar') && <NoteForm personId={p.id} onAdded={page.reload} />}
+          {detail.hidden_messages > 0 && (
+            <p className="form-note">
+              {detail.hidden_messages === 1
+                ? 'Hay 1 pedido de arrepentimiento o baja que tu rol no puede ver.'
+                : `Hay ${detail.hidden_messages} pedidos de arrepentimiento o baja que tu rol no puede ver.`}
+            </p>
+          )}
+          {timeline.length === 0 ? (
+            <p className="text-muted">Todavía no hay nada en el historial.</p>
+          ) : (
+            <ol className="timeline">
+              {timeline.map((item) =>
+                item.kind === 'mensaje' ? (
+                  <TimelineMessage key={`m-${item.message.id}`} m={item.message} />
+                ) : (
+                  <li key={`n-${item.note.id}`} className="timeline-item timeline-note">
+                    <p className="timeline-head">
+                      <strong>Nota interna</strong>
+                      <span className="text-muted">
+                        {' · '}
+                        {formatDateTime(item.note.created_at)}
+                        {item.note.author_email ? ` · ${item.note.author_email}` : ''}
+                      </span>
+                    </p>
+                    <p className="timeline-body">{item.note.body}</p>
+                  </li>
+                ),
+              )}
+            </ol>
+          )}
+        </section>
+
+        <aside className="stack-md" aria-labelledby="datos">
+          <h2 id="datos" className="h-md">
+            Datos
+          </h2>
+          <dl className="data-list data-list-stacked">
+            <div>
+              <dt>País</dt>
+              <dd>{p.country ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Primera vez</dt>
+              <dd>{formatDateTime(p.created_at)}</dd>
+            </div>
+            <div>
+              <dt>Última actividad</dt>
+              <dd>{formatDateTime(p.last_activity_at)}</dd>
+            </div>
+            {consents.map((c) => (
+              <div key={c.label}>
+                <dt>{c.label}</dt>
+                <dd>{c.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {can(access, 'personas.borrar') && (
+            <div className="panel panel-danger stack-sm">
+              <h3 className="h-md">Borrar a esta persona</h3>
+              <p className="text-muted">
+                Borra la ficha, sus mensajes y sus notas. Usalo cuando la persona pide que borren sus datos o cuando vence
+                el plazo de guarda.
+              </p>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleting(true)}>
+                Borrar a {personName(p)}
+              </button>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      <ConfirmDialog
+        open={deleting}
+        title="Borrar a esta persona"
+        confirmLabel="Borrar todo"
+        danger
+        onConfirm={confirmDelete}
+        onClose={() => setDeleting(false)}
+      >
+        <p>
+          Vas a borrar a <strong>{personName(p)}</strong> con {detail.messages.length + detail.hidden_messages} mensajes y{' '}
+          {detail.notes.length} notas. No se puede deshacer.
+        </p>
+        <p>La auditoría registra el borrado con la fecha y quién lo hizo, sin guardar sus datos personales.</p>
+      </ConfirmDialog>
+    </section>
+  )
+}
+
+function TimelineMessage({ m }: { m: PersonMessage }) {
+  const request = isRequest(m.source)
+  return (
+    <li className="timeline-item">
+      <p className="timeline-head">
+        <strong>{sourceLabel(m.source)}</strong>
+        <span className="text-muted">
+          {' · '}
+          {formatDateTime(m.created_at)} · {statusLabel(m.status)}
+        </span>
+      </p>
+      {request && (
+        <p className="timeline-meta">
+          Código <strong>{m.request_code}</strong> · {requestStateText(requestState(m.created_at, m.confirmed_at))}
+        </p>
+      )}
+      {m.motivo && (
+        <p className="timeline-meta">
+          {motivoLabel(m.source)}: {m.motivo}
+        </p>
+      )}
+      <p className="timeline-body">{m.message || emptyMessageText(m.source)}</p>
+      <p>
+        <Link className="text-link" to={`/mensajes?mensaje=${m.id}`}>
+          Abrir en Mensajes
+        </Link>
+      </p>
+    </li>
+  )
+}
+
+function NoteForm({ personId, onAdded }: { personId: string; onAdded: () => Promise<void> }) {
+  const toast = useToast()
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!body.trim()) return
+    setBusy(true)
+    try {
+      await addPersonNote(personId, body.trim())
+      setBody('')
+      toast.show('Nota agregada.')
+      await onAdded()
+    } catch (err) {
+      toast.show(errorMessage(err, 'No pudimos guardar la nota.'), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="field" onSubmit={handleSubmit}>
+      <label htmlFor="nota-persona">Agregar una nota interna</label>
+      <textarea
+        id="nota-persona"
+        rows={3}
+        maxLength={5000}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Por ejemplo: le conté cómo funcionan las becas por WhatsApp."
+      />
+      <div>
+        <button type="submit" className="btn btn-outline btn-sm" disabled={busy || !body.trim()}>
+          {busy ? 'Guardando…' : 'Agregar nota'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function PersonForm({ detail, onCancel, onSaved }: { detail: PersonDetail; onCancel: () => void; onSaved: () => Promise<void> }) {
+  const p = detail.person
+  const [firstName, setFirstName] = useState(p.first_name ?? '')
+  const [lastName, setLastName] = useState(p.last_name ?? '')
+  const [country, setCountry] = useState(p.country ?? '')
+  const [tags, setTags] = useState(p.tags.join(', '))
+  const [email, setEmail] = useState(p.email ?? '')
+  const [phone, setPhone] = useState(p.phone ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!p.contact_hidden && email.trim() && !isValidEmail(email)) {
+      setError('Revisá el email: tiene que ser una dirección válida, sin espacios.')
+      return
+    }
+    setError(null)
+    setBusy(true)
+    try {
+      await updatePerson(p.id, {
+        first_name: firstName,
+        last_name: lastName,
+        country,
+        tags: parseTags(tags),
+        ...(p.contact_hidden ? {} : { email, phone }),
+      })
+      await onSaved()
+    } catch (err) {
+      setError(
+        (err as { code?: string }).code === '23505'
+          ? 'Ya hay otra persona con ese email.'
+          : errorMessage(err, 'No pudimos guardar los cambios.'),
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="panel stack-md" onSubmit={handleSubmit} noValidate>
+      <h2 className="h-md">Editar datos</h2>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="p-nombre">Nombre</label>
+          <input id="p-nombre" value={firstName} maxLength={200} onChange={(e) => setFirstName(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="p-apellido">Apellido</label>
+          <input id="p-apellido" value={lastName} maxLength={200} onChange={(e) => setLastName(e.target.value)} />
+        </div>
+      </div>
+      {!p.contact_hidden && (
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="p-email">Email</label>
+            <input id="p-email" type="email" value={email} maxLength={320} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="p-telefono">Teléfono</label>
+            <input id="p-telefono" type="tel" value={phone} maxLength={40} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+        </div>
+      )}
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="p-pais">País</label>
+          <input id="p-pais" value={country} maxLength={100} onChange={(e) => setCountry(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="p-etiquetas">Etiquetas</label>
+          <input
+            id="p-etiquetas"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            aria-describedby="p-etiquetas-ayuda"
+            placeholder="beca, empresa, seguimiento"
+          />
+          <p id="p-etiquetas-ayuda" className="field-help">
+            Separalas con comas. Hasta 20.
+          </p>
+        </div>
+      </div>
+      {error && (
+        <p className="form-note form-note-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="form-actions">
+        <button type="submit" className="btn btn-solid" disabled={busy} aria-busy={busy}>
+          {busy ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}

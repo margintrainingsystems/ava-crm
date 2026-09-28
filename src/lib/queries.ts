@@ -110,7 +110,7 @@ export async function removeMember(userId: string): Promise<void> {
 
 export const AUDIT_PAGE_SIZE = 50
 
-export type AuditFilter = 'todo' | 'equipo' | 'roles'
+export type AuditFilter = 'todo' | 'personas' | 'equipo' | 'roles'
 
 export async function fetchAudit(filter: AuditFilter, before: number | null): Promise<AuditEntry[]> {
   let query = supabase
@@ -118,6 +118,7 @@ export async function fetchAudit(filter: AuditFilter, before: number | null): Pr
     .select('id, at, actor_id, actor_email, action, entity, entity_id, detail')
     .order('id', { ascending: false })
     .limit(AUDIT_PAGE_SIZE)
+  if (filter === 'personas') query = query.in('entity', ['crm_people', 'leads'])
   if (filter === 'equipo') query = query.eq('entity', 'crm_members')
   if (filter === 'roles') query = query.in('entity', ['crm_roles', 'crm_role_permissions'])
   if (before !== null) query = query.lt('id', before)

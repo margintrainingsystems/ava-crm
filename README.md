@@ -2,7 +2,7 @@
 
 Panel privado donde el equipo de AVA gestiona personas, mensajes, pedidos legales, suscripciones y el sorteo de becas. Vive aparte de Núcleo, que queda solo para administrar el sitio. Los dos usan el mismo proyecto de Supabase.
 
-Hoy el CRM tiene la **fase 0**: acceso, equipo, roles, permisos y auditoría. Las demás secciones se suman por fases (ver "Hoja de ruta").
+Hoy el CRM tiene las **fases 0 y 1**: acceso, equipo, roles, permisos, auditoría, personas y mensajes. Las demás secciones se suman por fases (ver "Hoja de ruta").
 
 ## Qué podés hacer hoy
 
@@ -10,6 +10,8 @@ Hoy el CRM tiene la **fase 0**: acceso, equipo, roles, permisos y auditoría. La
 - **Roles y permisos** (solo la propietaria): creás roles como "Docente" o "Atención a estudiantes" y elegís sus permisos de una lista fija. Los permisos que tocan datos sensibles llevan la marca "Sensible".
 - **Equipo** (solo la propietaria): invitás personas por email, cambiás su rol, desactivás o reactivás su acceso y las quitás del equipo.
 - **Auditoría** (propietaria y roles con el permiso "Ver la auditoría"): el registro de cada cambio en el equipo y en los roles. Nadie lo puede editar ni borrar.
+- **Mensajes**: todo lo que hacía Núcleo → Mensajes. Pestañas por tipo con contador, archivados, notas internas con aviso si quedan sin guardar, responder por email o WhatsApp, plazo de 24 horas de los pedidos, email de confirmación ya redactado, marcar como confirmado y descargar CSV. El menú muestra cuántos mensajes hay sin leer.
+- **Personas**: una ficha por email con todo lo que llegó desde el sitio, notas internas, etiquetas, consentimientos, historial, "Descargar sus datos" (para responder un pedido de acceso) y borrado completo.
 - **Cierre de sesión automático** después de una hora sin actividad.
 
 ## Cómo está armado
@@ -94,6 +96,20 @@ Las tablas del CRM usan el prefijo `crm_` en el schema `public`, así la API las
 | `crm_role_permissions` | Qué permisos tiene cada rol |
 | `crm_members` | Personas del equipo, con su rol y si están activas. La propietaria es la fila con `is_owner` |
 | `crm_audit_log` | Registro de cambios. Nadie lo edita ni lo borra desde la API |
+| `crm_people` | Una fila por persona, identificada por su email en minúsculas |
+| `crm_person_notes` | Notas internas sobre cada persona |
+| `leads.person_id` | Columna nueva y opcional: la completa el trigger `crm_link_lead` en cada formulario. El sitio no la envía y el valor que mande se ignora |
+
+### Cómo se protegen las personas y los mensajes
+
+El equipo no lee `leads`, `crm_people` ni `crm_person_notes` directamente: las tablas del CRM tienen RLS sin políticas y `leads` sigue siendo solo de Núcleo. Todo pasa por funciones (`crm_messages_list`, `crm_person_detail`, `crm_person_update`, etc.) que:
+
+- revisan el permiso de quien llama;
+- devuelven email y teléfono vacíos a quien no tiene "Ver email y teléfono";
+- muestran los pedidos de arrepentimiento y baja solo con "Gestionar arrepentimiento y baja";
+- registran en la auditoría cada ficha abierta, cada exportación, cada confirmación y cada borrado, sin guardar datos personales en el registro.
+
+Supabase muestra un aviso por cada una de esas funciones ("Signed-In Users Can Execute SECURITY DEFINER Function") y otro por las tablas sin políticas. Son intencionales: la prueba de la fase 1 comprueba que cada función bloquea a quien no corresponde.
 
 Funciones:
 
@@ -106,7 +122,12 @@ Protecciones de la fila de la propietaria: nadie la puede modificar ni borrar de
 
 ### Probar los permisos
 
-`supabase/tests/fase0_permisos.sql` crea cuentas de prueba, simula a la propietaria, a una persona del equipo, a una estudiante y a un visitante anónimo, y revisa 23 reglas. Termina con un error a propósito para que Postgres revierta todo. Correlo en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
+Dos scripts en `supabase/tests/` simulan a la propietaria, a personas del equipo con distintos roles, a una estudiante y a un visitante anónimo:
+
+- `fase0_permisos.sql`: equipo, roles y auditoría (23 reglas).
+- `fase1_personas_mensajes.sql`: formularios del sitio, fichas, email oculto, pedidos, edición y borrado (22 reglas).
+
+Terminan con un error a propósito para que Postgres revierta todo. Correlos en el SQL Editor de Supabase y leé el mensaje: tiene que decir `FALLAS: 0`.
 
 ### Agregar un permiso nuevo
 
@@ -133,14 +154,14 @@ Para publicarla con la CLI: `supabase functions deploy crm-equipo`.
 - No romper los INSERT públicos que hace el sitio en `leads`: no renombrar columnas ni agregar columnas obligatorias sin valor por defecto.
 - Cambios de base solo con migraciones nuevas en `supabase/migrations/`.
 - Colores: el verde es el principal; los acentos van solo en detalles.
-- Correr `npm run check` y la prueba de permisos antes de subir a `main`.
+- Correr `npm run check` y las pruebas de `supabase/tests/` antes de subir a `main`.
 
 ## Hoja de ruta
 
 | Fase | Entrega |
 |---|---|
 | 0 | Acceso, equipo, roles, permisos y auditoría. **Hecha** |
-| 1 | Personas y Mensajes: todo lo que hoy hace Núcleo → Mensajes, con una ficha por persona |
+| 1 | Personas y Mensajes: todo lo que hacía Núcleo → Mensajes, con una ficha por persona. **Hecha** |
 | 2 | Bandeja "Hoy", pedidos legales, días hábiles de Argentina, consentimientos y retención de datos |
 | 3 | Emails automáticos con Resend, empezando por la confirmación de pedidos en 24 horas |
 | 4 | Pagos con Mercado Pago y PayPal, suscripciones, cupo y sorteo de becas |

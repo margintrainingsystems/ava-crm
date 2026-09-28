@@ -257,6 +257,10 @@ dd {
   font-size: 0.96rem;
   transition: border-color var(--fast) var(--ease);
 }
+.field input,
+.field select {
+  min-height: 48px;
+}
 .field input:focus,
 .field select:focus,
 .field textarea:focus {

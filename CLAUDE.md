@@ -8,6 +8,7 @@ Leé el README antes de cambiar algo. Resumen de lo que no se negocia:
 - Tablas del CRM con prefijo `crm_`, RLS obligatorio, helpers en `crm_private`. Cambios de base solo con migraciones en `supabase/migrations/` con el mismo nombre y versión que quedan en Supabase.
 - Nunca pedir ni guardar datos de tarjetas, DNI ni datos sensibles. La `service_role` solo en Edge Functions.
 - Todo lo que se sube a GitHub va directo a `main`. El plan de trabajo queda local, fuera del repo.
-- Antes de subir: `npm run check`, `npm run build` y `supabase/tests/fase0_permisos.sql` con `FALLAS: 0`.
+- Antes de subir: `npm run check`, `npm run build` y cada script de `supabase/tests/` con `FALLAS: 0`.
+- Personas y mensajes se leen solo con las funciones `crm_*` (security definer que revisan permisos y ocultan contacto). No agregues políticas que den acceso directo a `leads` o `crm_people`.
 - Diseño: tokens en `src/styles/tokens.css`. Verde como color principal; acentos solo en detalles. Sin glassmorphism, sin cajas de métricas en grupos de 3 o 4, sin etiquetas decorativas sobre los títulos, sin métricas inventadas.
 - Si falta una definición (cupo, plataforma del Campus, textos legales), preguntale a la dueña. No la completes por tu cuenta.

@@ -10,6 +10,8 @@ describe('visibleNav', () => {
   it('muestra todo a la propietaria', () => {
     expect(visibleNav({ isOwner: true, permissions: new Set() }).map((i) => i.to)).toEqual([
       '/',
+      '/mensajes',
+      '/personas',
       '/equipo',
       '/roles',
       '/auditoria',
@@ -21,6 +23,10 @@ describe('visibleNav', () => {
     expect(visibleNav({ isOwner: false, permissions: new Set(['auditoria.ver']) }).map((i) => i.to)).toEqual([
       '/',
       '/auditoria',
+    ])
+    expect(visibleNav({ isOwner: false, permissions: new Set(['pedidos.gestionar']) }).map((i) => i.to)).toEqual([
+      '/',
+      '/mensajes',
     ])
   })
 })

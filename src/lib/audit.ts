@@ -1,4 +1,6 @@
 import type { Json } from './database.types'
+import { plural } from './format'
+import { sourceLabel } from './messages'
 
 export type AuditEntry = {
   id: number
@@ -71,7 +73,46 @@ export function describeAuditEntry(entry: AuditEntry, lookup: Lookup): string {
     return `A ${email}: ${changes.join(', ')}`
   }
 
+  if (entry.entity === 'leads') {
+    const code = text(detail.codigo)
+    if (entry.action === 'confirmar_pedido') return `Confirmó el pedido ${code}`
+    if (entry.action === 'borrar_mensaje') {
+      return `Borró un mensaje de ${sourceLabel(text(detail.tipo)).toLowerCase()}${code ? ` (${code})` : ''}`
+    }
+    if (entry.action === 'exportar_mensajes') return `Descargó ${plural(Number(detail.cantidad ?? 0), 'mensaje', 'mensajes')} en CSV`
+  }
+
+  if (entry.entity === 'crm_people') {
+    if (entry.action === 'ver_persona') {
+      return detail.con_contacto === true ? 'Abrió una ficha, con email y teléfono' : 'Abrió una ficha, sin datos de contacto'
+    }
+    if (entry.action === 'editar_persona') {
+      const fields = Array.isArray(detail.campos) ? detail.campos.map((c) => FIELD_LABEL[text(c)] ?? text(c)) : []
+      return `Editó una ficha: ${fields.join(', ') || 'sin cambios'}`
+    }
+    if (entry.action === 'borrar_persona') {
+      return `Borró a una persona con ${plural(Number(detail.mensajes ?? 0), 'mensaje', 'mensajes')} y ${plural(Number(detail.notas ?? 0), 'nota', 'notas')}`
+    }
+    if (entry.action === 'exportar_personas') return `Descargó ${plural(Number(detail.cantidad ?? 0), 'persona', 'personas')} en CSV`
+    if (entry.action === 'exportar_persona') return 'Descargó todos los datos de una persona'
+  }
+
   return `${entry.action} en ${entry.entity}`
+}
+
+const FIELD_LABEL: Record<string, string> = {
+  nombre: 'nombre',
+  apellido: 'apellido',
+  pais: 'país',
+  etiquetas: 'etiquetas',
+  email: 'email',
+  telefono: 'teléfono',
+}
+
+// Los registros de fichas apuntan a una persona que puede seguir existiendo.
+export function auditPersonLink(entry: AuditEntry): string | null {
+  if (entry.entity !== 'crm_people' || !entry.entity_id || entry.action === 'borrar_persona') return null
+  return `/personas/${entry.entity_id}`
 }
 
 // Quién hizo el cambio. Las altas que hace el sistema (por ejemplo, una Edge Function) no tienen persona.

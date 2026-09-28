@@ -1,4 +1,4 @@
-import { auditActor, describeAuditEntry, type AuditEntry } from './audit'
+import { auditActor, auditPersonLink, describeAuditEntry, type AuditEntry } from './audit'
 
 const lookup = {
   roleNames: new Map([['r1', 'Docente']]),
@@ -59,5 +59,30 @@ describe('describeAuditEntry', () => {
 
   it('muestra "Sistema" cuando no hay persona', () => {
     expect(auditActor(entry({ actor_email: null }))).toBe('Sistema')
+  })
+})
+
+describe('describeAuditEntry en personas y mensajes', () => {
+  const lookup = { roleNames: new Map<string, string>(), permissionLabels: new Map<string, string>() }
+  const base = { id: 9, at: '2026-09-28T12:00:00Z', actor_id: 'u', actor_email: 'a@example.com', entity_id: 'p1' }
+
+  it('describe pedidos y mensajes', () => {
+    expect(describeAuditEntry({ ...base, action: 'confirmar_pedido', entity: 'leads', detail: { codigo: 'ARR-1' } }, lookup)).toBe(
+      'Confirmó el pedido ARR-1',
+    )
+    expect(
+      describeAuditEntry({ ...base, action: 'borrar_mensaje', entity: 'leads', detail: { tipo: 'suscripcion' } }, lookup),
+    ).toBe('Borró un mensaje de lista de espera')
+  })
+
+  it('describe fichas sin mostrar datos personales', () => {
+    expect(
+      describeAuditEntry({ ...base, action: 'editar_persona', entity: 'crm_people', detail: { campos: ['pais', 'telefono'] } }, lookup),
+    ).toBe('Editó una ficha: país, teléfono')
+    expect(
+      describeAuditEntry({ ...base, action: 'borrar_persona', entity: 'crm_people', detail: { mensajes: 3, notas: 1 } }, lookup),
+    ).toBe('Borró a una persona con 3 mensajes y 1 nota')
+    expect(auditPersonLink({ ...base, action: 'ver_persona', entity: 'crm_people', detail: {} })).toBe('/personas/p1')
+    expect(auditPersonLink({ ...base, action: 'borrar_persona', entity: 'crm_people', detail: {} })).toBeNull()
   })
 })

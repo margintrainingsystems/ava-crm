@@ -6,10 +6,14 @@ import { firstName } from '../lib/format'
 import { can, groupPermissions } from '../lib/permissions'
 import { fetchPermissions, fetchRoles, fetchTeam } from '../lib/queries'
 import { useAsync } from '../lib/useAsync'
+import { useUnreadCount } from '../lib/useUnreadCount'
+import { MESSAGE_PERMISSIONS } from '../components/AppLayout'
 
 export function HomePage() {
   const { member, access } = useMember()
   const permissions = useAsync(fetchPermissions)
+  const seesMessages = MESSAGE_PERMISSIONS.some((p) => can(access, p))
+  const unread = useUnreadCount(seesMessages)
 
   return (
     <section className="stack-lg">
@@ -23,6 +27,21 @@ export function HomePage() {
             : `Tu rol es ${member.roleName ?? 'sin nombre'}.`}
         </p>
       </header>
+
+      {seesMessages && (
+        <p className="panel">
+          {unread === 0 ? (
+            'No hay mensajes sin leer.'
+          ) : (
+            <>
+              {unread === 1 ? 'Hay 1 mensaje sin leer. ' : `Hay ${unread} mensajes sin leer. `}
+              <Link className="text-link" to="/mensajes">
+                Ir a Mensajes
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {member.isOwner && <OwnerNextSteps />}
 

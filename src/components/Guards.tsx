@@ -16,14 +16,19 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
-type AccessProps = { children: ReactNode } & ({ ownerOnly: true } | { permission: PermissionKey })
+type AccessProps = { children: ReactNode } & ({ ownerOnly: true } | { permission: PermissionKey } | { anyOf: PermissionKey[] })
 
 // Oculta una pantalla a quien no tiene permiso. La base de datos aplica la misma regla con RLS:
 // esto solo evita mostrar una pantalla vacía.
 export function RequireAccess(props: AccessProps) {
   const { state } = useAuth()
   if (state.status !== 'ready') return null
-  const allowed = 'ownerOnly' in props ? state.access.isOwner : can(state.access, props.permission)
+  const allowed =
+    'ownerOnly' in props
+      ? state.access.isOwner
+      : 'anyOf' in props
+        ? props.anyOf.some((p) => can(state.access, p))
+        : can(state.access, props.permission)
   if (!allowed) return <NoPermission />
   return <>{props.children}</>
 }

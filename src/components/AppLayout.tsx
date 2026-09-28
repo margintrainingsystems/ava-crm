@@ -3,12 +3,22 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMember, useAuth } from '../auth/context'
 import { useIdleSignOut } from '../auth/useIdleSignOut'
 import { can, type Access, type PermissionKey } from '../lib/permissions'
+import { useUnreadCount } from '../lib/useUnreadCount'
 import { Brand } from './Brand'
 
-type NavItem = { to: string; label: string; end?: boolean } & ({ ownerOnly: true } | { permission: PermissionKey } | { always: true })
+type NavItem = { to: string; label: string; end?: boolean } & (
+  | { ownerOnly: true }
+  | { permission: PermissionKey }
+  | { anyOf: PermissionKey[] }
+  | { always: true }
+)
+
+export const MESSAGE_PERMISSIONS: PermissionKey[] = ['mensajes.ver', 'pedidos.gestionar']
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Inicio', end: true, always: true },
+  { to: '/mensajes', label: 'Mensajes', anyOf: MESSAGE_PERMISSIONS },
+  { to: '/personas', label: 'Personas', permission: 'personas.ver' },
   { to: '/equipo', label: 'Equipo', ownerOnly: true },
   { to: '/roles', label: 'Roles y permisos', ownerOnly: true },
   { to: '/auditoria', label: 'Auditoría', permission: 'auditoria.ver' },
@@ -18,6 +28,7 @@ export function visibleNav(access: Access): NavItem[] {
   return NAV.filter((item) => {
     if ('always' in item) return true
     if ('ownerOnly' in item) return access.isOwner
+    if ('anyOf' in item) return item.anyOf.some((p) => can(access, p))
     return can(access, item.permission)
   })
 }
@@ -29,6 +40,8 @@ export function AppLayout() {
   const { signOut } = useAuth()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const unread = useUnreadCount(MESSAGE_PERMISSIONS.some((p) => can(access, p)))
 
   const onIdle = useCallback(() => void signOut(IDLE_NOTICE), [signOut])
   useIdleSignOut(onIdle)
@@ -80,6 +93,12 @@ export function AppLayout() {
               <li key={item.to}>
                 <NavLink to={item.to} end={item.end} className="nav-link" onClick={() => setMenuOpen(false)}>
                   {item.label}
+                  {item.to === '/mensajes' && unread > 0 && (
+                    <span className="nav-badge">
+                      {unread > 99 ? '99+' : unread}
+                      <span className="visually-hidden"> sin leer</span>
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}

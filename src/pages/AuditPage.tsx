@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { LoadError } from '../components/LoadError'
 import { Loading } from '../components/StatusScreens'
-import { auditActor, describeAuditEntry, type AuditEntry } from '../lib/audit'
+import { Link } from 'react-router-dom'
+import { auditActor, auditPersonLink, describeAuditEntry, type AuditEntry } from '../lib/audit'
 import { formatDateTime } from '../lib/format'
 import { AUDIT_PAGE_SIZE, fetchAudit, fetchPermissions, fetchRoles, type AuditFilter } from '../lib/queries'
 import { useAsync } from '../lib/useAsync'
 
 const FILTERS: { value: AuditFilter; label: string }[] = [
   { value: 'todo', label: 'Todo' },
+  { value: 'personas', label: 'Personas y mensajes' },
   { value: 'equipo', label: 'Personas del equipo' },
   { value: 'roles', label: 'Roles y permisos' },
 ]
@@ -35,7 +37,7 @@ export function AuditPage() {
           Auditoría
         </h1>
         <p className="text-muted measure">
-          Registro de cada cambio en el equipo y en los roles: quién lo hizo y cuándo. Nadie lo puede editar ni borrar.
+          Quién abrió fichas, descargó datos o cambió algo en el CRM, y cuándo. Nadie puede editar ni borrar este registro.
         </p>
       </header>
 
@@ -96,6 +98,14 @@ function AuditList({ filter, lookup }: { filter: AuditFilter; lookup: Lookup }) 
             </time>
             <p className="audit-text">
               <span className="audit-actor">{auditActor(entry)}</span> {describeAuditEntry(entry, lookup)}
+              {auditPersonLink(entry) && (
+                <>
+                  {' · '}
+                  <Link className="text-link" to={auditPersonLink(entry) ?? '/personas'}>
+                    Ver ficha
+                  </Link>
+                </>
+              )}
             </p>
           </li>
         ))}
