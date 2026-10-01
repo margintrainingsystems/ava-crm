@@ -26,6 +26,7 @@ import {
   type Subscription,
   type SubscriptionStatus,
 } from '../lib/billing'
+import { CAMPUS_LOCALE_LABEL, campusInviteText, inviteToCampus, type CampusLocale } from '../lib/campus'
 import { formatDay, fromLocalInput, toLocalInput } from '../lib/compliance'
 import { fetchPeople, personName } from '../lib/crm'
 import { errorMessage } from '../lib/errors'
@@ -296,6 +297,8 @@ function SubscriptionDetailView({ id, onChanged }: { id: string; onChanged: () =
         )}
       </div>
 
+      {manage && (d.status === 'activa' || d.status === 'cancelada') && <CampusInvite subscriptionId={d.id} />}
+
       {renewing && (
         <RenewalForm
           subscriptionId={d.id}
@@ -511,6 +514,7 @@ function NewPaymentForm({
   const [amount, setAmount] = useState('')
   const [paidAt, setPaidAt] = useState(() => toLocalInput())
   const [operation, setOperation] = useState('')
+  const [campusLocale, setCampusLocale] = useState<CampusLocale>('es')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const sortedPeople = useMemo(
@@ -539,7 +543,17 @@ function NewPaymentForm({
         providerPaymentId: operation.trim(),
         becaPickId: becaPickId ?? undefined,
       })
-      toast.show(becaPickId ? 'Registraste el alta con la beca.' : 'Registraste el alta.')
+      const saved = becaPickId ? 'Registraste el alta con la beca.' : 'Registraste el alta.'
+      // El alta ya quedó: si la invitación falla, se puede reenviar desde la suscripción.
+      try {
+        const invite = await inviteToCampus(id, campusLocale)
+        toast.show(`${saved} ${campusInviteText(invite)}`)
+      } catch (inviteError) {
+        toast.show(
+          `${saved} La invitación al Campus no salió: ${inviteFailure(inviteError)} Reenviala desde la suscripción.`,
+          'error',
+        )
+      }
       await onSaved(id)
     } catch (err) {
       setError(errorMessage(err, 'No pudimos registrar el cobro.'))
@@ -614,6 +628,24 @@ function NewPaymentForm({
           <input id="alta-op" value={operation} maxLength={200} onChange={(e) => setOperation(e.target.value)} />
         </div>
       </div>
+      <div className="field">
+        <label htmlFor="alta-idioma">Idioma del Campus</label>
+        <select
+          id="alta-idioma"
+          aria-describedby="alta-idioma-ayuda"
+          value={campusLocale}
+          onChange={(e) => setCampusLocale(e.target.value as CampusLocale)}
+        >
+          {(Object.keys(CAMPUS_LOCALE_LABEL) as CampusLocale[]).map((l) => (
+            <option key={l} value={l}>
+              {CAMPUS_LOCALE_LABEL[l]}
+            </option>
+          ))}
+        </select>
+        <p id="alta-idioma-ayuda" className="field-help">
+          Al registrar el alta le llega la invitación al Campus en este idioma. Después puede cambiarlo desde el Campus.
+        </p>
+      </div>
       {error && (
         <p className="form-note form-note-error" role="alert">
           {error}
@@ -628,5 +660,51 @@ function NewPaymentForm({
         </button>
       </div>
     </form>
+  )
+}
+
+// inviteToCampus siempre falla con un mensaje listo para mostrar.
+function inviteFailure(e: unknown): string {
+  return e instanceof Error && e.message ? e.message : 'No pudimos mandar la invitación al Campus.'
+}
+
+// Manda (o reenvía) la invitación al Campus. Si la persona ya tiene cuenta, no le llega nada:
+// entra con su contraseña de siempre.
+function CampusInvite({ subscriptionId }: { subscriptionId: string }) {
+  const toast = useToast()
+  const [locale, setLocale] = useState<CampusLocale>('es')
+  const [busy, setBusy] = useState(false)
+
+  async function send() {
+    setBusy(true)
+    try {
+      toast.show(campusInviteText(await inviteToCampus(subscriptionId, locale)))
+    } catch (e) {
+      toast.show(inviteFailure(e), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="form-actions">
+      <div className="field field-inline">
+        <label htmlFor={`campus-idioma-${subscriptionId}`}>Idioma del Campus</label>
+        <select
+          id={`campus-idioma-${subscriptionId}`}
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as CampusLocale)}
+        >
+          {(Object.keys(CAMPUS_LOCALE_LABEL) as CampusLocale[]).map((l) => (
+            <option key={l} value={l}>
+              {CAMPUS_LOCALE_LABEL[l]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button type="button" className="btn btn-outline btn-sm" disabled={busy} aria-busy={busy} onClick={() => void send()}>
+        {busy ? 'Enviando…' : 'Invitar al Campus'}
+      </button>
+    </div>
   )
 }

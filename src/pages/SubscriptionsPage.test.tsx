@@ -14,11 +14,16 @@ const api = vi.hoisted(() => ({
   refundPayment: vi.fn(),
 }))
 const crm = vi.hoisted(() => ({ fetchPeople: vi.fn() }))
+const campus = vi.hoisted(() => ({ inviteToCampus: vi.fn() }))
 
 vi.mock('../lib/supabase', () => ({ supabase: {}, clearStoredSession: vi.fn() }))
 vi.mock('../lib/billing', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/billing')>()),
   ...api,
+}))
+vi.mock('../lib/campus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/campus')>()),
+  ...campus,
 }))
 vi.mock('../lib/crm', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/crm')>()),
@@ -73,6 +78,8 @@ describe('SubscriptionsPage', () => {
   beforeEach(() => {
     Object.values(api).forEach((f) => f.mockReset())
     crm.fetchPeople.mockReset()
+    campus.inviteToCampus.mockReset()
+    campus.inviteToCampus.mockResolvedValue({ estado: 'invitada' })
     api.fetchEnrollment.mockResolvedValue(enrollment)
     api.fetchMasters.mockResolvedValue([{ id: 'm1', name: 'Datos y Análisis', price: 175 }])
     api.fetchSubscription.mockResolvedValue(detail)
@@ -128,5 +135,54 @@ describe('SubscriptionsPage', () => {
     await userEvent.type(screen.getByLabelText('Monto cobrado'), '313.000')
     await userEvent.click(screen.getByRole('button', { name: 'Registrar' }))
     expect(api.registerPayment).toHaveBeenCalledWith(expect.objectContaining({ personId: 'p1', becaPickId: 'k1', amount: 313000 }))
+  })
+
+  it('al registrar un alta invita al Campus en el idioma elegido', async () => {
+    api.fetchSubscriptions.mockResolvedValue([])
+    api.registerPayment.mockResolvedValue('s9')
+    renderWithAuth(<SubscriptionsPage />, readyState({}, ['suscripciones.ver', 'suscripciones.gestionar', 'personas.ver']))
+    await userEvent.click(await screen.findByRole('button', { name: 'Registrar un cobro' }))
+    await screen.findByRole('option', { name: /Ana Pérez/ })
+    await userEvent.selectOptions(screen.getByLabelText('Persona'), 'p1')
+    await userEvent.type(screen.getByLabelText('Monto cobrado'), '626.000')
+    await userEvent.selectOptions(screen.getByLabelText('Idioma del Campus'), 'pt')
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+    expect(campus.inviteToCampus).toHaveBeenCalledWith('s9', 'pt')
+    expect(await screen.findByText(/Registraste el alta\. Le mandamos la invitación al Campus/)).toBeInTheDocument()
+  })
+
+  it('si la invitación falla, el alta queda registrada y avisa cómo reenviarla', async () => {
+    api.fetchSubscriptions.mockResolvedValue([])
+    api.registerPayment.mockResolvedValue('s9')
+    campus.inviteToCampus.mockRejectedValue(new Error('Se enviaron muchos emails seguidos.'))
+    renderWithAuth(<SubscriptionsPage />, readyState({}, ['suscripciones.ver', 'suscripciones.gestionar', 'personas.ver']))
+    await userEvent.click(await screen.findByRole('button', { name: 'Registrar un cobro' }))
+    await screen.findByRole('option', { name: /Ana Pérez/ })
+    await userEvent.selectOptions(screen.getByLabelText('Persona'), 'p1')
+    await userEvent.type(screen.getByLabelText('Monto cobrado'), '626.000')
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar' }))
+    expect(
+      await screen.findByText(/Registraste el alta\. La invitación al Campus no salió: Se enviaron muchos emails seguidos\. Reenviala/),
+    ).toBeInTheDocument()
+  })
+
+  it('desde la suscripción se puede invitar al Campus', async () => {
+    api.fetchSubscriptions.mockResolvedValue([sub({})])
+    campus.inviteToCampus.mockResolvedValue({ estado: 'ya_tiene_cuenta' })
+    renderWithAuth(
+      <SubscriptionsPage />,
+      readyState({}, ['suscripciones.ver', 'suscripciones.gestionar']),
+      '/suscripciones?suscripcion=s1',
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Invitar al Campus' }))
+    expect(campus.inviteToCampus).toHaveBeenCalledWith('s1', 'es')
+    expect(await screen.findByText(/Ya tenía cuenta en AVA/)).toBeInTheDocument()
+  })
+
+  it('sin permiso de gestión no muestra la invitación al Campus', async () => {
+    api.fetchSubscriptions.mockResolvedValue([sub({})])
+    renderWithAuth(<SubscriptionsPage />, readyState({}, ['suscripciones.ver']), '/suscripciones?suscripcion=s1')
+    expect(await screen.findByText('Código')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Invitar al Campus' })).not.toBeInTheDocument()
   })
 })
